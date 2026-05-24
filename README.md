@@ -1,4 +1,4 @@
-# PartHun
+# PartHunt
 
 PartHunt is a Firebase-backed web app for finding used, scrap, recycled, and replacement car parts.
 
