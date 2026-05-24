@@ -1,5 +1,6 @@
 import SwiftUI
 import FirebaseCore
+import GoogleSignIn
 
 @main
 struct PartHuntApp: App {
@@ -13,6 +14,9 @@ struct PartHuntApp: App {
         WindowGroup {
             RootView()
                 .environmentObject(appState)
+                .onOpenURL { url in
+                    GIDSignIn.sharedInstance.handle(url)
+                }
         }
     }
 }

@@ -30,6 +30,7 @@
 		91A118A1D8E74A6088AD370E /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 9E1306F807D34CC1BF6ED969 /* FirebaseStorage */; };
 		50EC42C6A1EB40C6B875C927 /* FirebaseFunctions in Frameworks */ = {isa = PBXBuildFile; productRef = 789E78D01BDC4E1CA4F1A484 /* FirebaseFunctions */; };
 		D17D889DFD2A40F5B7434569 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 1D3659DDE5064C3CB4A9FA97 /* GoogleSignIn */; };
+		7B1F0B3C9C7B4E5DA40E1A11 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 4C8B2A1D5F934A8FB6E5D7C2 /* GoogleService-Info.plist */; };
 /* End PBXBuildFile section */
 /* Begin PBXFileReference section */
 		BC801355592B45D488658941 /* PartHuntApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "App/PartHuntApp.swift"; sourceTree = "<group>"; };
@@ -52,6 +53,7 @@
 		C9F7DFB388A541B5B175D6B9 /* PlatformsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Views/Platforms/PlatformsView.swift"; sourceTree = "<group>"; };
 		104DED6F6DD441F293660104 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Views/Settings/SettingsView.swift"; sourceTree = "<group>"; };
 		A80F2C33F004486FB5C2E306 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		4C8B2A1D5F934A8FB6E5D7C2 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Resources/GoogleService-Info.plist"; sourceTree = "<group>"; };
 		DA84F11BE5074ED4B9588AE5 /* PartHunt.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PartHunt.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 /* Begin PBXFrameworksBuildPhase section */
@@ -87,6 +89,7 @@
 				C9F7DFB388A541B5B175D6B9 /* PlatformsView.swift */,
 				104DED6F6DD441F293660104 /* SettingsView.swift */,
 				A80F2C33F004486FB5C2E306 /* Info.plist */,
+				4C8B2A1D5F934A8FB6E5D7C2 /* GoogleService-Info.plist */,
 		); path = PartHunt; sourceTree = "<group>"; };
 		7E48DD4E990C473BA001F6D7 /* Products */ = {isa = PBXGroup; children = (DA84F11BE5074ED4B9588AE5 /* PartHunt.app */,); name = Products; sourceTree = "<group>"; };
 /* End PBXGroup section */
@@ -107,7 +110,9 @@
 			); productRefGroup = 7E48DD4E990C473BA001F6D7 /* Products */; projectDirPath = ""; projectRoot = ""; targets = (980CB124D91144C29ACF363C /* PartHunt */,); };
 /* End PBXProject section */
 /* Begin PBXResourcesBuildPhase section */
-		1218D96F623F48F09FE0FC94 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		1218D96F623F48F09FE0FC94 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (
+				7B1F0B3C9C7B4E5DA40E1A11 /* GoogleService-Info.plist in Resources */,
+		); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXResourcesBuildPhase section */
 /* Begin PBXSourcesBuildPhase section */
 		43D5DB3B39D3466C8C6D3389 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (

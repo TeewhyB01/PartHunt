@@ -5,9 +5,23 @@
     <div id="siteNav"></div>
     <main>
       <section class="page-hero compact"><div><p class="eyebrow">Search results</p><h1 id="resultsTitle">Search results</h1><p class="hero-copy">Exact external seller links are available to signed-in users.</p></div></section>
+      <section class="section save-search-section">
+        <div class="save-search-prompt">
+          <div>
+            <p class="eyebrow">Search history</p>
+            <h2>Want to keep track of this search?</h2>
+            <p class="muted">Save this search so you can revisit it, update the purchase status, and leave a review later.</p>
+            <p id="saveSearchStatus" class="form-status" role="status"></p>
+          </div>
+          <button id="saveSearchButton" class="button button-primary" type="button">Save Search</button>
+        </div>
+      </section>
       <section class="section results-layout">
         <aside class="filters"><details open><summary>Filters</summary><label><span>Condition</span><select id="conditionFilter"><option value="">Any</option><option value="Used">Used</option><option value="Refurbished">Refurbished</option><option value="New">New</option><option value="Scrap/breaker part">Scrap/breaker part</option></select></label><label class="checkbox-row"><input id="deliveryFilter" type="checkbox" /><span>Delivery available</span></label></details></aside>
-        <div id="resultsGrid" class="results-grid"></div>
+        <div class="results-main">
+          <div id="resultsGrid" class="results-grid"></div>
+          <nav id="paginationControls" class="pagination-controls" aria-label="Search result pages"></nav>
+        </div>
       </section>
     </main>
     <div id="siteFooter"></div><div id="loginPrompt"></div><button id="chatToggle" class="chat-toggle" type="button">Ask</button><section id="chatbox" class="chatbox hidden"></section><script type="module" src="/site.js"></script>

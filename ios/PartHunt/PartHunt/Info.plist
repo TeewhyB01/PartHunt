@@ -16,6 +16,17 @@
 	<string>$(PRODUCT_NAME)</string>
 	<key>CFBundlePackageType</key>
 	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.1089089473351-nml0qs295r8eaimq24lg8g7qccf7qim4</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleShortVersionString</key>
 	<string>0.1.0</string>
 	<key>CFBundleVersion</key>

@@ -30,6 +30,7 @@ const db = getFirestore(app);
 const provider = new GoogleAuthProvider();
 const page = document.body.dataset.page;
 let currentUser = null;
+let pendingRedirectAfterAuth = false;
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
@@ -41,6 +42,18 @@ function initials(value) {
 function stars(rating) {
   const rounded = Math.round(Number(rating) || 0);
   return `${"★".repeat(rounded)}${"☆".repeat(Math.max(0, 5 - rounded))}`;
+}
+
+function starRating(rating, showNumber = true) {
+  const value = Math.max(0, Math.min(5, Number(rating) || 0));
+  const fullStars = Math.floor(value);
+  const halfStar = value - fullStars >= 0.5;
+  const symbols = Array.from({ length: 5 }, (_, index) => {
+    if (index < fullStars) return "★";
+    if (index === fullStars && halfStar) return "★";
+    return "☆";
+  }).join("");
+  return `<span class="star-rating" aria-label="${value.toFixed(1)} out of 5 stars"><span>${symbols}</span>${showNumber ? `<strong>${value.toFixed(1)}/5</strong>` : ""}</span>`;
 }
 
 function setTheme(theme) {
@@ -191,21 +204,44 @@ function requireAuth(action, returnTo = location.pathname) {
   return false;
 }
 
-function isExactListingUrl(url, platform) {
+function isValidListingUrl(url, platformName = "") {
   try {
     const parsed = new URL(url);
-    const platformUrl = platform?.websiteUrl ? new URL(platform.websiteUrl) : null;
-    if (!parsed.protocol.startsWith("http")) return false;
-    if (!platformUrl) return parsed.pathname.length > 1;
-    return parsed.hostname.replace("www.", "") === platformUrl.hostname.replace("www.", "") && parsed.pathname.replace(/\/$/, "") !== "";
+    if (!["http:", "https:"].includes(parsed.protocol)) return false;
+    const path = parsed.pathname.replace(/\/+$/, "");
+    if (!path || path === "/") return false;
+
+    const host = parsed.hostname.replace(/^www\./, "").toLowerCase();
+    const normalPlatform = String(platformName || "").toLowerCase();
+    const homepageHosts = {
+      ebay: ["ebay.co.uk", "ebay.com"],
+      breakerlink: ["breakerlink.com"],
+      "1st choice spares": ["1stchoice.co.uk"],
+      "parts gateway": ["partsgateway.co.uk"],
+    };
+    const matchingHosts = Object.entries(homepageHosts).find(([name]) => normalPlatform.includes(name))?.[1] || [];
+    if (matchingHosts.includes(host) && !path.slice(1).includes("/")) return false;
+    if (normalPlatform.includes("ebay") && !path.startsWith("/itm/")) return false;
+    return true;
   } catch {
     return false;
   }
 }
 
-function platformLogo(platform, small = false) {
-  if (platform.logoUrl) return `<img class="platform-logo ${small ? "small" : ""}" src="${platform.logoUrl}" alt="${platform.name} logo" />`;
-  return `<span class="platform-logo ${small ? "small" : ""}" aria-hidden="true">${initials(platform.name)}</span>`;
+function platformLogo(platform = {}, small = false) {
+  const name = platform.name || platform.platformName || "Platform";
+  const logoUrl = platform.logoUrl || platform.platformLogoUrl || "";
+  if (logoUrl) {
+    return `<span class="platform-logo-shell ${small ? "small" : ""}"><img class="platform-logo-image" src="${logoUrl}" alt="${name} logo" loading="lazy" onerror="this.parentElement.innerHTML='${initials(name)}'; this.parentElement.classList.add('fallback');" /></span>`;
+  }
+  return `<span class="platform-logo-shell fallback ${small ? "small" : ""}" aria-hidden="true">${initials(name)}</span>`;
+}
+
+function listingImage(result) {
+  if (result.imageUrl) {
+    return `<img src="${result.imageUrl}" alt="${result.title}" loading="lazy" onerror="this.closest('.result-image').classList.add('image-missing'); this.remove();" />`;
+  }
+  return `<div class="no-image-fallback"><span>No image available</span></div>`;
 }
 
 function categoryIcon(categoryKey) {
@@ -234,13 +270,41 @@ function renderPlatformCards(containerSelector = "#platformGrid", list = demoPla
         <h3>${platform.name}</h3>
         <span class="category-badge">${categoryIcon(platform.categoryKey)}${platform.category}</span>
       </div>
-      <div><span class="stars">${stars(platform.averageRating)}</span> <strong>${platform.averageRating}/5</strong></div>
+      ${starRating(platform.averageRating)}
       <div class="result-meta"><span class="tag">${platform.reviewCount} reviews</span><span class="tag">${platform.successfulPurchaseCount} purchases</span></div>
       <p class="muted">Popular for: ${platform.topPartCategories.join(", ")}</p>
       <p>${platform.summary}</p>
       <a class="button button-secondary" href="/platforms/${platform.slug}/">View Platform Review</a>
     </article>
   `).join("");
+}
+
+function initPlatformCarousel() {
+  const track = $("#platformCarouselTrack");
+  if (!track) return;
+  track.innerHTML = demoPlatforms
+    .sort((a, b) => b.successfulPurchaseCount - a.successfulPurchaseCount || b.averageRating - a.averageRating)
+    .slice(0, 10)
+    .map((platform) => `
+      <article class="platform-card carousel-card">
+        <div class="platform-image">${platformLogo(platform)}</div>
+        <div>
+          <h3>${platform.name}</h3>
+          <span class="category-badge">${categoryIcon(platform.categoryKey)}${platform.category}</span>
+        </div>
+        ${starRating(platform.averageRating)}
+        <div class="result-meta"><span class="tag">${platform.reviewCount} reviews</span><span class="tag">${platform.successfulPurchaseCount} purchases</span></div>
+        <p class="muted">Popular for: ${platform.topPartCategories.join(", ")}</p>
+        <a class="button button-secondary" href="/platforms/${platform.slug}/">View Platform Review</a>
+      </article>
+    `).join("");
+
+  $$(".carousel-control").forEach((button) => {
+    button.addEventListener("click", () => {
+      const direction = button.dataset.direction === "next" ? 1 : -1;
+      track.scrollBy({ left: direction * Math.min(760, track.clientWidth * 0.82), behavior: "smooth" });
+    });
+  });
 }
 
 function initPlatformDirectory() {
@@ -307,28 +371,20 @@ function priceRangeForPart(partName) {
   return [25, 320];
 }
 
-function createSearchResults(search) {
+function createSearchResults(search, pageNumber = 1, limit = 10) {
   const vehicle = search.vehicle || {};
   const partName = search.selectedPart?.name || vehicle.wantedItem || search.partNumber || "car part";
   const vehicleName = [vehicle.year, vehicle.make, vehicle.model, vehicle.variant].filter(Boolean).join(" ");
   const queryTitle = [vehicleName, partName].filter(Boolean).join(" ");
   const seed = Math.abs(hashString(`${search.rawQuery}-${partName}-${vehicleName}`));
   const [minPrice, maxPrice] = priceRangeForPart(partName);
-  const conditions = ["Used", "Used", "Used", "Refurbished", "Used", "New", "Scrap/breaker part", "Used", "Refurbished", "Used"];
-  const locations = ["Manchester", "Birmingham", "Leeds", "Bristol", "Glasgow", "London", "Cardiff", "Nottingham", "Liverpool", "Sheffield"];
+  const conditions = ["Used", "Used", "Used", "Refurbished", "Used", "New", "Scrap/breaker part", "Used", "Refurbished", "Used", "Used", "Refurbished"];
+  const locations = ["Manchester", "Birmingham", "Leeds", "Bristol", "Glasgow", "London", "Cardiff", "Nottingham", "Liverpool", "Sheffield", "Newcastle", "Coventry"];
   const confidence = ["High match", "High match", "Possible match", "Possible match", "Check carefully", "Possible match", "High match", "Possible match", "Check carefully", "Possible match"];
-  const platformSequence = [
-    demoPlatforms.find((platform) => platform.id === "ebay"),
-    demoPlatforms.find((platform) => platform.id === "breakerlink"),
-    demoPlatforms.find((platform) => platform.id === "parts-gateway"),
-    demoPlatforms.find((platform) => platform.id === "1st-choice-spares"),
-    demoPlatforms.find((platform) => platform.id === "local-scrap-yard"),
-    demoPlatforms.find((platform) => platform.id === "independent-breaker-yard"),
-    demoPlatforms.find((platform) => platform.id === "ebay"),
-    demoPlatforms.find((platform) => platform.id === "parts-gateway"),
-    demoPlatforms.find((platform) => platform.id === "breakerlink"),
-    demoPlatforms.find((platform) => platform.id === "ebay"),
-  ].filter(Boolean);
+  const platformSequence = Array.from({ length: 28 }, (_, index) => {
+    const base = ["ebay", "breakerlink", "parts-gateway", "1st-choice-spares", "local-scrap-yard", "independent-breaker-yard", "ebay", "parts-gateway", "breakerlink", "ebay"];
+    return demoPlatforms.find((platform) => platform.id === base[index % base.length]);
+  }).filter(Boolean);
   const titleTemplates = [
     `${queryTitle} used replacement part`,
     `${queryTitle} breaker yard quote`,
@@ -351,44 +407,67 @@ function createSearchResults(search) {
       ? `https://www.ebay.co.uk/itm/${100000000 + ((seed + index * 931) % 899999999)}`
       : platform.websiteUrl
         ? `${platform.websiteUrl.replace(/\/$/, "")}/parts/${listingSlug}`
-        : `https://example.com/${platform.slug}/${listingSlug}`;
+        : "";
 
     return {
       id: `res-${platform.id}-${listingSlug}`,
-      title: titleTemplates[index],
+      title: titleTemplates[index % titleTemplates.length],
       description: `Generated from your search for ${queryTitle}. Confirm part number, vehicle side, variant, condition, delivery cost, and return policy before buying.`,
       imageUrl: images[index % images.length],
       price: `£${price}`,
       source: platform.name,
       platformId: platform.id,
       platformName: platform.name,
+      platformLogoUrl: platform.logoUrl,
       platformCategory: platform.category,
       listingUrl,
       originalDomain: platform.websiteUrl ? new URL(platform.websiteUrl).hostname.replace(/^www\./, "") : "local seller",
-      condition: conditions[index],
+      condition: conditions[index % conditions.length],
       location: locations[(seed + index) % locations.length],
       delivery: index % 4 !== 0,
-      confidenceLabel: confidence[index],
+      deliveryOption: index % 4 !== 0 ? "Delivery available" : "Collection only",
+      confidenceLabel: confidence[index % confidence.length],
     };
   });
 }
 
-function runSearch(search) {
+async function searchPartsApi(input = {}) {
+  const pageNumber = Math.max(1, Number(input.page) || 1);
+  const limit = Math.max(1, Math.min(30, Number(input.limit) || 10));
+  try {
+    const response = await fetch("/api/search-parts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...input, page: pageNumber, limit }),
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(body.message || "Search request failed.");
+    if (Array.isArray(body.results) || Array.isArray(body.allResults)) return body;
+  } catch (error) {
+    console.warn("Using demo search fallback. Configure SERPAPI_KEY and deploy /api/search-parts for live results.", error);
+  }
+
+  const allResults = createSearchResults(input);
+  const totalResults = allResults.length;
+  const totalPages = Math.max(1, Math.ceil(totalResults / limit));
+  const start = (pageNumber - 1) * limit;
+  return {
+    results: allResults.slice(start, start + limit),
+    allResults,
+    totalResults,
+    currentPage: pageNumber,
+    totalPages,
+    hasNextPage: pageNumber < totalPages,
+    provider: "demo",
+  };
+}
+
+async function runSearch(search) {
   if (!requireAuth({ type: "runSearch", search }, location.pathname)) return;
-  const results = createSearchResults(search);
-  const payload = { id: `srch_${Date.now()}`, ...search, results };
+  const response = await searchPartsApi({ ...search, page: 1, limit: 30 });
+  const payload = { id: `srch_${Date.now()}`, ...search, results: response.allResults || response.results || [], totalResults: response.totalResults, provider: response.provider || "demo" };
   sessionStorage.setItem("parthunt-current-search", JSON.stringify(payload));
-  saveSearch({
-    searchType: search.searchType,
-    rawQuery: search.rawQuery,
-    generatedSearchTerms: search.generatedSearchTerms || [search.rawQuery],
-    vehicle: search.vehicle || null,
-    selectedPart: search.selectedPart || null,
-    partNumber: search.partNumber || null,
-    resultsCount: results.length,
-  }).finally(() => {
-    location.href = "/search/results/demo-search/";
-  });
+  location.href = "/search/results/demo-search/";
 }
 
 function initAuthPages() {
@@ -429,14 +508,29 @@ function initAuthPages() {
 function initPartSearch() {
   $("#partSearchForm")?.addEventListener("submit", (event) => {
     event.preventDefault();
+    const form = event.currentTarget;
+    const submit = form.querySelector("[type='submit']");
+    const status = $("#partSearchStatus");
     const vehicle = { make: $("#make").value.trim(), model: $("#model").value.trim(), year: $("#year").value.trim(), engineSize: $("#engineSize").value.trim(), fuelType: $("#fuelType").value, transmission: $("#transmission").value };
     const partNumber = $("#partNumber").value.trim();
+    if (!partNumber) {
+      status.textContent = "Enter a part number before searching.";
+      $("#partNumber").focus();
+      return;
+    }
+    status.textContent = "";
+    submit.disabled = true;
+    submit.dataset.originalText = submit.textContent;
+    submit.textContent = "Preparing search...";
     runSearch({
       searchType: "part_number",
       partNumber,
       vehicle,
-      rawQuery: `"${partNumber}" ${vehicle.year} ${vehicle.make} ${vehicle.model} used car part`.trim(),
-      generatedSearchTerms: [`"${partNumber}"`, `"${partNumber}" used car part`, `${vehicle.year} ${vehicle.make} ${vehicle.model} ${partNumber}`.trim()],
+      rawQuery: [partNumber, vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(" "),
+      generatedSearchTerms: [`"${partNumber}"`, `${vehicle.year} ${vehicle.make} ${vehicle.model} ${partNumber}`.trim(), `${vehicle.make} ${vehicle.model} ${partNumber}`.trim()].filter(Boolean),
+    }).finally(() => {
+      submit.disabled = false;
+      submit.textContent = submit.dataset.originalText || "Search Part";
     });
   });
 }
@@ -528,7 +622,7 @@ function initVehicleDropdowns() {
   const modelSelect = $("#model");
   const variantSelect = $("#variant");
   const yearSelect = $("#year");
-  if (!makeSelect || !yearSelect) return;
+  if (!makeSelect || !yearSelect || makeSelect.tagName !== "SELECT" || yearSelect.tagName !== "SELECT") return;
 
   const makes = Object.keys(popularVehicleMakes).sort((a, b) => a.localeCompare(b));
   makeSelect.innerHTML = `<option value="">Select make</option>${makes.map((make) => `<option value="${make}">${make}</option>`).join("")}`;
@@ -560,12 +654,7 @@ function initVehicleSearch() {
         alternativeNames: [],
       },
       rawQuery: searchBase.trim(),
-      generatedSearchTerms: [
-        `${searchBase} used`.trim(),
-        `${searchBase} breaker`.trim(),
-        `${searchBase} scrap yard`.trim(),
-        `${vehicle.make} ${vehicle.model} ${vehicle.wantedItem} replacement part`.trim(),
-      ],
+      generatedSearchTerms: [searchBase.trim(), `${vehicle.make} ${vehicle.model} ${vehicle.wantedItem}`.trim(), `${vehicle.year} ${vehicle.make} ${vehicle.model} ${vehicle.wantedItem}`.trim()],
     });
   });
 }
@@ -648,40 +737,108 @@ function initVehicleModel() {
   select("front-bumper");
 }
 
+function comparedResultIds() {
+  return JSON.parse(sessionStorage.getItem("parthunt-compare-results") || "[]");
+}
+
+function saveComparedResultIds(ids) {
+  sessionStorage.setItem("parthunt-compare-results", JSON.stringify(ids.slice(0, 4)));
+}
+
+function renderCompareTray(search = {}) {
+  let tray = $("#compareTray");
+  const selectedIds = comparedResultIds();
+  const selectedResults = (search.results || []).filter((result) => selectedIds.includes(result.id));
+  if (!tray) {
+    document.body.insertAdjacentHTML("beforeend", `<aside id="compareTray" class="compare-tray hidden" aria-live="polite"></aside>`);
+    tray = $("#compareTray");
+  }
+  tray.classList.toggle("hidden", !selectedResults.length);
+  tray.innerHTML = selectedResults.length ? `
+    <div>
+      <p class="eyebrow">Compare</p>
+      <strong>${selectedResults.length} selected</strong>
+    </div>
+    <div class="compare-items">
+      ${selectedResults.map((result) => `<span>${result.title.slice(0, 44)}${result.title.length > 44 ? "..." : ""}</span>`).join("")}
+    </div>
+    <button class="button button-ghost" type="button" data-clear-compare>Clear</button>
+  ` : "";
+  tray.querySelector("[data-clear-compare]")?.addEventListener("click", () => {
+    saveComparedResultIds([]);
+    renderCompareTray(search);
+    $$(".result-card.is-compared").forEach((card) => card.classList.remove("is-compared"));
+    $$("[data-compare]").forEach((button) => (button.textContent = "Compare"));
+  });
+}
+
+function toggleCompare(resultId, search = {}) {
+  const ids = comparedResultIds();
+  const exists = ids.includes(resultId);
+  const nextIds = exists ? ids.filter((id) => id !== resultId) : [...ids, resultId].slice(-4);
+  saveComparedResultIds(nextIds);
+  $$("[data-compare]").forEach((button) => {
+    const selected = nextIds.includes(button.dataset.compare);
+    button.textContent = selected ? "Selected" : "Compare";
+    button.closest(".result-card")?.classList.toggle("is-compared", selected);
+  });
+  renderCompareTray(search);
+}
+
+function askAgentAboutResult(resultId, search = {}) {
+  const result = (search.results || []).find((item) => item.id === resultId);
+  if (!result) return;
+  $("#chatbox")?.classList.remove("hidden");
+  $("#chatToggle")?.classList.add("hidden");
+  const messages = $("#chatMessages");
+  if (!messages) return;
+  messages.insertAdjacentHTML("beforeend", `<div class="message user"><strong>You</strong>Can you help me check this listing: ${result.title}</div>`);
+  messages.insertAdjacentHTML("beforeend", `<div class="message"><strong>PartHunt Agent</strong>Check the part number, vehicle year range, side, condition photos, seller returns, and delivery cost before opening the listing. This result is marked "${result.confidenceLabel}", so compare the title against your vehicle details carefully.</div>`);
+  messages.scrollTop = messages.scrollHeight;
+}
+
 function initResults() {
   const search = JSON.parse(sessionStorage.getItem("parthunt-current-search") || "null") || {
     searchType: "vehicle_part",
-    rawQuery: "2017 Ford Focus front bumper used",
+    rawQuery: "2017 Ford Focus front bumper",
     vehicle: { year: "2017", make: "Ford", model: "Focus", wantedItem: "front bumper" },
     selectedPart: { name: "front bumper" },
   };
-  if (!Array.isArray(search.results) || !search.results.length) {
+  if (search.provider !== "serpapi" && (!Array.isArray(search.results) || !search.results.length || search.results.some((result) => !result.title || !result.confidenceLabel))) {
     search.results = createSearchResults(search);
     sessionStorage.setItem("parthunt-current-search", JSON.stringify(search));
   }
   $("#resultsTitle") && ($("#resultsTitle").textContent = `Results for: ${search.rawQuery}`);
   const grid = $("#resultsGrid");
   if (!grid) return;
+  let currentPage = Number(new URLSearchParams(location.search).get("page")) || 1;
+  const perPage = 10;
 
   const renderResults = (results) => {
     grid.innerHTML = results.length ? results.map((result) => {
-    const platform = demoPlatforms.find((item) => item.id === result.platformId);
-    const valid = isExactListingUrl(result.listingUrl, platform);
-    return `<article class="result-card">
+    const platform = demoPlatforms.find((item) => item.id === result.platformId) || result;
+    const valid = isValidListingUrl(result.listingUrl, result.platformName);
+    const confidenceClass = result.confidenceLabel === "High match" ? "high" : result.confidenceLabel === "Possible match" ? "possible" : "careful";
+    return `<article class="result-card" data-result-id="${result.id}">
       <div class="result-image">
-        ${result.imageUrl ? `<img src="${result.imageUrl}" alt="${result.title}" loading="lazy" onerror="this.closest('.result-image').classList.add('image-missing'); this.remove();" />` : `<span>${result.source}</span>`}
+        ${listingImage(result)}
+        <span class="result-image-badge">${result.condition || "Check listing"}</span>
       </div>
       <div class="result-body">
-        <div class="result-platform">${platformLogo(platform, true)}<strong>${result.platformName}</strong><span class="tag">${result.platformCategory}</span></div>
-        <div class="price">${result.price}</div>
+        <div class="result-card-top">
+          <div class="result-platform">${platformLogo(platform, true)}<div><strong>${result.platformName}</strong><span>${result.platformCategory}</span></div></div>
+          <span class="tag confidence ${confidenceClass}">${result.confidenceLabel}</span>
+        </div>
         <h3>${result.title}</h3>
         <p class="muted">${result.description}</p>
-        <div class="result-meta"><span class="tag">${result.location}</span><span class="tag">${result.condition}</span><span class="tag">${result.delivery ? "Delivery" : "Collection"}</span><span class="tag confidence">${result.confidenceLabel}</span></div>
+        <div class="result-meta"><span class="tag">${result.location}</span><span class="tag">${result.deliveryOption || (result.delivery ? "Delivery available" : "Collection only")}</span></div>
+        <div class="result-card-bottom">
+          <div><span class="price">${result.price}</span><small>Confirm on seller page</small></div>
+        </div>
         <div class="card-actions">
           ${valid ? `<button class="button button-primary" type="button" data-listing="${result.listingUrl}">View Exact Listing</button>` : `<button class="button button-ghost" type="button" disabled>Listing unavailable</button>`}
-          <button class="button button-ghost" type="button" data-save="${result.id}">Save Part</button>
-          <button class="button button-secondary" type="button">Ask Agent</button>
-          <button class="button button-ghost" type="button">Compare</button>
+          <button class="button button-secondary" type="button" data-compare="${result.id}">Compare</button>
+          <button class="button button-ghost" type="button" data-agent="${result.id}">Ask Agent</button>
         </div>
       </div>
     </article>`;
@@ -692,15 +849,37 @@ function initResults() {
       if (!requireAuth({ type: "openListing", url }, location.pathname)) return;
       window.open(url, "_blank", "noopener,noreferrer");
     }));
-    grid.querySelectorAll("[data-save]").forEach((button) => button.addEventListener("click", async () => {
-      if (!requireAuth({ type: "savePart", resultId: button.dataset.save }, location.pathname)) return;
-      const result = search.results.find((item) => item.id === button.dataset.save);
-      await setDoc(doc(db, "users", currentUser.uid, "savedParts", result.id), { ...result, savedAt: serverTimestamp() });
-      alert("Part saved.");
-    }));
+    grid.querySelectorAll("[data-compare]").forEach((button) => button.addEventListener("click", () => toggleCompare(button.dataset.compare, search)));
+    grid.querySelectorAll("[data-agent]").forEach((button) => button.addEventListener("click", () => askAgentAboutResult(button.dataset.agent, search)));
+    const selectedIds = comparedResultIds();
+    grid.querySelectorAll("[data-compare]").forEach((button) => {
+      const selected = selectedIds.includes(button.dataset.compare);
+      button.textContent = selected ? "Selected" : "Compare";
+      button.closest(".result-card")?.classList.toggle("is-compared", selected);
+    });
   };
 
-  const applyFilters = () => {
+  const renderPagination = (filtered) => {
+    const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+    currentPage = Math.min(Math.max(1, currentPage), totalPages);
+    const controls = $("#paginationControls");
+    if (!controls) return;
+    controls.innerHTML = `
+      <button class="button button-ghost" type="button" data-page-action="prev" ${currentPage === 1 ? "disabled" : ""}>Previous</button>
+      <span>Page ${currentPage} of ${totalPages}</span>
+      <button class="button button-ghost" type="button" data-page-action="next" ${currentPage >= totalPages ? "disabled" : ""}>Next</button>
+    `;
+    controls.querySelector("[data-page-action='prev']")?.addEventListener("click", () => {
+      currentPage -= 1;
+      applyFilters();
+    });
+    controls.querySelector("[data-page-action='next']")?.addEventListener("click", () => {
+      currentPage += 1;
+      applyFilters();
+    });
+  };
+
+  function applyFilters() {
     const condition = $("#conditionFilter")?.value || "";
     const deliveryOnly = Boolean($("#deliveryFilter")?.checked);
     const filtered = search.results.filter((result) => {
@@ -708,12 +887,28 @@ function initResults() {
       const deliveryMatches = !deliveryOnly || Boolean(result.delivery);
       return conditionMatches && deliveryMatches;
     });
-    renderResults(filtered);
-  };
+    renderPagination(filtered);
+    const start = (currentPage - 1) * perPage;
+    renderResults(filtered.slice(start, start + perPage));
+  }
 
   $("#conditionFilter")?.addEventListener("change", applyFilters);
   $("#deliveryFilter")?.addEventListener("change", applyFilters);
+  $("#saveSearchButton")?.addEventListener("click", async () => {
+    if (!requireAuth({ type: "saveSearch", search }, location.pathname)) return;
+    await saveSearch({
+      searchType: search.searchType,
+      rawQuery: search.rawQuery,
+      generatedSearchTerms: search.generatedSearchTerms || [search.rawQuery],
+      vehicle: search.vehicle || null,
+      selectedPart: search.selectedPart || null,
+      partNumber: search.partNumber || null,
+      resultsCount: search.results.length,
+    });
+    $("#saveSearchStatus").textContent = "Search saved to your history.";
+  });
   applyFilters();
+  renderCompareTray(search);
 }
 
 function initPlatformProfile() {
@@ -722,15 +917,15 @@ function initPlatformProfile() {
   const target = $("#platformProfileContent");
   if (!target) return;
   target.innerHTML = `<article class="platform-profile-card">
-    <div class="platform-image">${initials(platform.name)}</div>
-    <div class="platform-profile-header"><div>${platformLogo(platform)}<p class="eyebrow">Platform profile</p><h1>${platform.name}</h1><p class="muted">${platform.category}</p></div><div><div class="stars">${stars(platform.averageRating)}</div><strong>${platform.averageRating}/5 from ${platform.reviewCount} reviews</strong><p class="muted">${platform.successfulPurchaseCount} successful purchases</p></div></div>
+    <div class="platform-profile-cover">${platform.coverImageUrl ? `<img src="${platform.coverImageUrl}" alt="" />` : `<div>${platformLogo(platform)}<span>${platform.category}</span></div>`}</div>
+    <div class="platform-profile-header"><div>${platformLogo(platform)}<p class="eyebrow">Platform profile</p><h1>${platform.name}</h1><span class="category-badge">${categoryIcon(platform.categoryKey)}${platform.category}</span></div><div>${starRating(platform.averageRating)}<strong>${platform.reviewCount} reviews</strong><p class="muted">${platform.successfulPurchaseCount} successful purchases</p></div></div>
     <div class="result-meta"><span class="tag">Item ${platform.averageItemRating}/5</span><span class="tag">Delivery ${platform.averageDeliveryRating}/5</span><span class="tag">${platform.wouldBuyAgainPercentage}% would buy again</span></div>
     <p>${platform.summary}</p><p class="muted">Common parts: ${platform.topPartCategories.join(", ")}</p>
     ${platform.websiteUrl ? `<a class="button button-primary" href="${platform.websiteUrl}" target="_blank" rel="noopener noreferrer">Visit platform website</a>` : ""}
     <h3>Rating breakdown</h3>
     ${[5,4,3,2,1].map((rating, index) => `<div class="breakdown-row"><span>${rating} stars</span><div class="breakdown-bar"><span style="width:${[52,31,10,5,2][index]}%"></span></div><span>${[52,31,10,5,2][index]}%</span></div>`).join("")}
     <h3>User reviews</h3>
-    <div class="review-list"><article class="review-card"><div class="stars">${stars(platform.averageRating)}</div><strong>Demo feedback</strong><p>${platform.summary}</p><p class="muted">Seed/demo data</p></article></div>
+    ${platform.reviewCount ? `<div class="review-list"><article class="review-card">${starRating(platform.averageRating, false)}<strong>Demo feedback</strong><p>${platform.summary}</p><p class="muted">Seed/demo data</p></article></div>` : `<div class="empty-state">No user reviews yet. Ratings will appear once users start reviewing this platform.</div>`}
   </article>`;
 }
 
@@ -782,6 +977,7 @@ async function initProtectedPages() {
 
 function initPage() {
   renderPlatformCards();
+  initPlatformCarousel();
   initPlatformDirectory();
   initAuthPages();
   initPartSearch();
@@ -804,7 +1000,9 @@ onAuthStateChanged(auth, async (user) => {
   $("#navSignUp").classList.toggle("hidden", Boolean(user));
   $("#accountMenu").classList.toggle("hidden", !user);
   if (user && ["sign-in", "sign-up"].includes(page)) {
+    pendingRedirectAfterAuth = true;
     location.href = "/";
+    return;
   }
   if (user) {
     try {
@@ -816,6 +1014,19 @@ onAuthStateChanged(auth, async (user) => {
     sessionStorage.removeItem("parthunt-pending-action");
     if (pending?.type === "openListing") window.open(pending.url, "_blank", "noopener,noreferrer");
     if (pending?.type === "runSearch") runSearch(pending.search);
+    if (pending?.type === "saveSearch") {
+      await saveSearch({
+        searchType: pending.search.searchType,
+        rawQuery: pending.search.rawQuery,
+        generatedSearchTerms: pending.search.generatedSearchTerms || [pending.search.rawQuery],
+        vehicle: pending.search.vehicle || null,
+        selectedPart: pending.search.selectedPart || null,
+        partNumber: pending.search.partNumber || null,
+        resultsCount: pending.search.results?.length || 0,
+      });
+      sessionStorage.setItem("parthunt-current-search", JSON.stringify(pending.search));
+      location.href = "/search/results/demo-search/";
+    }
   }
-  await initProtectedPages();
+  if (!pendingRedirectAfterAuth) await initProtectedPages();
 });

@@ -7,6 +7,8 @@ struct SearchResultsView: View {
     @State private var condition = "Any"
     @State private var deliveryOnly = false
     @State private var selectedUrl: URL?
+    @State private var comparedResults: Set<String> = []
+    @State private var agentResult: SearchResult?
 
     private var filteredResults: [SearchResult] {
         search.results.filter { result in
@@ -29,10 +31,39 @@ struct SearchResultsView: View {
 
             Section("Results") {
                 ForEach(filteredResults) { result in
-                    ResultRow(result: result) {
-                        Task { await viewModel.save(result: result) }
+                    ResultRow(
+                        result: result,
+                        isCompared: comparedResults.contains(result.id)
+                    ) {
+                        if comparedResults.contains(result.id) {
+                            comparedResults.remove(result.id)
+                        } else {
+                            if comparedResults.count >= 4, let first = comparedResults.first {
+                                comparedResults.remove(first)
+                            }
+                            comparedResults.insert(result.id)
+                        }
+                    } askAgent: {
+                        agentResult = result
                     } open: {
                         selectedUrl = URL(string: result.listingUrl)
+                    }
+                }
+            }
+
+            if !comparedResults.isEmpty {
+                Section("Compare") {
+                    ForEach(search.results.filter { comparedResults.contains($0.id) }) { result in
+                        HStack {
+                            Text(result.title)
+                                .font(.subheadline.bold())
+                            Spacer()
+                            Text(result.price)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    Button("Clear comparison") {
+                        comparedResults.removeAll()
                     }
                 }
             }
@@ -41,17 +72,41 @@ struct SearchResultsView: View {
         .sheet(item: $selectedUrl) { url in
             SafariView(url: url)
         }
+        .sheet(item: $agentResult) { result in
+            AgentResultView(result: result)
+        }
     }
 }
 
 struct ResultRow: View {
     let result: SearchResult
-    let save: () -> Void
+    let isCompared: Bool
+    let compare: () -> Void
+    let askAgent: () -> Void
     let open: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack {
+            AsyncImage(url: URL(string: result.imageUrl ?? "")) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFit()
+                case .failure:
+                    ContentUnavailableView("No image available", systemImage: "photo")
+                case .empty:
+                    ProgressView()
+                @unknown default:
+                    EmptyView()
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 190)
+            .background(Color(.secondarySystemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+
+            HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(result.platformName)
                         .font(.caption.bold())
@@ -59,9 +114,14 @@ struct ResultRow: View {
                     Text(result.title)
                         .font(.headline)
                 }
-                Spacer()
-                Text(result.price)
-                    .font(.title3.bold())
+                Spacer(minLength: 12)
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text(result.price)
+                        .font(.title3.bold())
+                    Text(result.confidenceLabel)
+                        .font(.caption.bold())
+                        .foregroundStyle(confidenceColor)
+                }
             }
 
             Text(result.description)
@@ -78,11 +138,48 @@ struct ResultRow: View {
             HStack {
                 Button("View Exact Listing", action: open)
                     .buttonStyle(.borderedProminent)
-                Button("Save Part", action: save)
+                Button(isCompared ? "Selected" : "Compare", action: compare)
+                    .buttonStyle(.bordered)
+                Button("Ask Agent", action: askAgent)
                     .buttonStyle(.bordered)
             }
+            .buttonStyle(.bordered)
         }
         .padding(.vertical, 8)
+    }
+
+    private var confidenceColor: Color {
+        switch result.confidenceLabel {
+        case "High match":
+            return .green
+        case "Possible match":
+            return .orange
+        default:
+            return .red
+        }
+    }
+}
+
+struct AgentResultView: View {
+    let result: SearchResult
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section("Listing") {
+                    Text(result.title)
+                    Text(result.platformName)
+                    Text(result.price)
+                }
+
+                Section("PartHunt Agent") {
+                    Text("Check the part number, vehicle year range, side, condition photos, seller returns, and delivery cost before opening the listing.")
+                    Text("This result is marked “\(result.confidenceLabel)”, so compare the title against your vehicle details carefully.")
+                }
+            }
+            .navigationTitle("Ask Agent")
+            .navigationBarTitleDisplayMode(.inline)
+        }
     }
 }
 

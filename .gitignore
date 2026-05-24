@@ -5,3 +5,7 @@ out/
 dist/
 .vercel
 parthunt-*.png
+.DS_Store
+ios/PartHunt/DerivedData/
+ios/PartHunt/PartHunt.xcodeproj/project.xcworkspace/
+ios/PartHunt/PartHunt.xcodeproj/xcuserdata/

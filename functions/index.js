@@ -1,7 +1,9 @@
 const { onRequest } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
+const { searchPartsWithSerpApi } = require("./search-parts.cjs");
 
 const dvlaApiKey = defineSecret("DVLA_API_KEY");
+const serpApiKey = defineSecret("SERPAPI_KEY");
 
 function normaliseRegistration(value) {
   return String(value || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
@@ -54,5 +56,22 @@ exports.vehicleLookup = onRequest({ secrets: [dvlaApiKey], cors: true, region: "
     });
   } catch (error) {
     response.status(502).json({ message: "Could not reach DVLA Vehicle Enquiry Service." });
+  }
+});
+
+exports.searchParts = onRequest({ secrets: [serpApiKey], cors: true, region: "europe-west2" }, async (request, response) => {
+  if (request.method !== "POST") {
+    response.status(405).json({ message: "Use POST." });
+    return;
+  }
+
+  try {
+    const result = await searchPartsWithSerpApi(request.body || {}, serpApiKey.value());
+    response.json(result);
+  } catch (error) {
+    response.status(error.statusCode || 500).json({
+      message: error.message || "Search failed.",
+      provider: "serpapi",
+    });
   }
 });

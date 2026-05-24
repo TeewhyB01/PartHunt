@@ -9,8 +9,6 @@ struct RootView: View {
                 FirebaseSetupView()
             } else if !appState.authReady {
                 ProgressView("Loading PartHunt AI")
-            } else if appState.user == nil {
-                AuthView()
             } else {
                 MainTabView()
             }
@@ -36,6 +34,33 @@ struct MainTabView: View {
             NavigationStack { SettingsView() }
                 .tabItem { Label("Account", systemImage: "person.circle") }
         }
+    }
+}
+
+struct SignInRequiredView: View {
+    let title: String
+    let message: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Image(systemName: "person.crop.circle.badge.plus")
+                .font(.system(size: 46))
+                .foregroundStyle(.blue)
+            Text(title)
+                .font(.title.bold())
+            Text(message)
+                .foregroundStyle(.secondary)
+            NavigationLink {
+                AuthView()
+            } label: {
+                Label("Sign in or create account", systemImage: "person.crop.circle")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .padding(24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(Color(.systemGroupedBackground))
     }
 }
 

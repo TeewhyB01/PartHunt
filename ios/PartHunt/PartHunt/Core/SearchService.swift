@@ -1,11 +1,21 @@
 import Foundation
 
 struct SearchService {
-    func search(vehicle: Vehicle, wantedItem: String) -> PartSearch {
+    private let endpoint = URL(string: "https://parthunt.vercel.app/api/search-parts")!
+
+    func search(vehicle: Vehicle, wantedItem: String) async throws -> PartSearch {
         let baseQuery = [vehicle.year, vehicle.make, vehicle.model, vehicle.variant, wantedItem]
             .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
             .joined(separator: " ")
+
+        let terms = [
+            baseQuery,
+            "\(vehicle.make) \(vehicle.model) \(wantedItem)".trimmingCharacters(in: .whitespacesAndNewlines),
+            "\(vehicle.year ?? "") \(vehicle.make) \(vehicle.model) \(wantedItem)".trimmingCharacters(in: .whitespacesAndNewlines)
+        ].filter { !$0.isEmpty }
+
+        let results = try await liveResults(vehicle: vehicle, wantedItem: wantedItem, rawQuery: baseQuery)
 
         let search = PartSearch(
             id: "srch_\(Int(Date().timeIntervalSince1970))",
@@ -13,16 +23,40 @@ struct SearchService {
             vehicle: vehicle,
             selectedPartName: wantedItem,
             rawQuery: baseQuery,
-            generatedSearchTerms: [
-                "\(baseQuery) used",
-                "\(baseQuery) breaker",
-                "\(baseQuery) scrap yard",
-                "\(vehicle.make) \(vehicle.model) \(wantedItem) replacement part"
-            ],
-            results: generateResults(query: baseQuery, vehicle: vehicle, partName: wantedItem)
+            generatedSearchTerms: terms,
+            results: results
         )
 
         return search
+    }
+
+    private func liveResults(vehicle: Vehicle, wantedItem: String, rawQuery: String) async throws -> [SearchResult] {
+        let payload = SearchPartsRequest(
+            vehicle: SearchVehiclePayload(
+                make: vehicle.make,
+                model: vehicle.model,
+                variant: vehicle.variant,
+                year: vehicle.year,
+                wantedItem: wantedItem
+            ),
+            selectedPart: SelectedPartPayload(name: wantedItem),
+            rawQuery: rawQuery,
+            page: 1,
+            limit: 30
+        )
+
+        var request = URLRequest(url: endpoint)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode(payload)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse, (200..<300).contains(httpResponse.statusCode) else {
+            return generateResults(query: rawQuery, vehicle: vehicle, partName: wantedItem)
+        }
+
+        let decoded = try JSONDecoder().decode(SearchPartsResponse.self, from: data)
+        return decoded.allResults ?? decoded.results
     }
 
     private func generateResults(query: String, vehicle: Vehicle, partName: String) -> [SearchResult] {
@@ -61,4 +95,29 @@ struct SearchService {
         if value.contains("mirror") || value.contains("light") { return 35..<260 }
         return 25..<320
     }
+}
+
+private struct SearchPartsRequest: Encodable {
+    let vehicle: SearchVehiclePayload
+    let selectedPart: SelectedPartPayload
+    let rawQuery: String
+    let page: Int
+    let limit: Int
+}
+
+private struct SearchVehiclePayload: Encodable {
+    let make: String
+    let model: String
+    let variant: String?
+    let year: String?
+    let wantedItem: String
+}
+
+private struct SelectedPartPayload: Encodable {
+    let name: String
+}
+
+private struct SearchPartsResponse: Decodable {
+    let results: [SearchResult]
+    let allResults: [SearchResult]?
 }

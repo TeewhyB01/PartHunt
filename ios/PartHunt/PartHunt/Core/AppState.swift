@@ -10,6 +10,8 @@ final class AppState: ObservableObject {
     private var authHandle: AuthStateDidChangeListenerHandle?
 
     init() {
+        FirebaseBootstrap.configureIfAvailable()
+
         guard FirebaseBootstrap.isConfigured else {
             authReady = true
             return

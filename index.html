@@ -25,12 +25,18 @@
             <a class="button button-secondary" href="/search/vehicle/">Search by Vehicle</a>
           </div>
         </div>
-        <div class="hero-panel homepage-preview car-viewer-panel" aria-label="Interactive skeletal 3D car model preview">
-          <div id="homeCarViewer" class="home-car-viewer" role="img" aria-label="Skeletal 3D car model preview"></div>
-          <div class="scan-card">
-            <span class="scan-line"></span>
-            <p>Search flow</p>
-            <strong>Vehicle → Part selector → Results → Exact listing</strong>
+        <div class="hero-panel homepage-preview selector-preview-card" aria-label="Vehicle selector preview">
+          <div class="selector-preview-visual" aria-hidden="true">
+            <img src="/car-banner.svg" alt="" />
+            <span class="hotspot hotspot-front"></span>
+            <span class="hotspot hotspot-door"></span>
+            <span class="hotspot hotspot-wheel"></span>
+          </div>
+          <div class="selector-preview-copy">
+            <p class="eyebrow">Feature preview</p>
+            <h2>Preview the vehicle selector.</h2>
+            <p class="muted">Choose a vehicle, pick the part area, then review results before opening exact seller listings.</p>
+            <a class="button button-primary" href="/search/vehicle/">Open Vehicle Search</a>
           </div>
         </div>
       </section>
@@ -86,7 +92,11 @@
           </div>
           <a class="button button-secondary" href="/platforms/">View All Platforms</a>
         </div>
-        <div id="platformGrid" class="platform-grid"></div>
+        <div class="platform-carousel">
+          <button class="carousel-control carousel-control-left" data-direction="prev" type="button" aria-label="Scroll platforms left">‹</button>
+          <div id="platformCarouselTrack" class="platform-carousel-track" tabindex="0" aria-label="Top platform cards"></div>
+          <button class="carousel-control carousel-control-right" data-direction="next" type="button" aria-label="Scroll platforms right">›</button>
+        </div>
       </section>
 
       <section class="section page-card trust-safety">
@@ -102,7 +112,6 @@
     <div id="loginPrompt"></div>
     <button id="chatToggle" class="chat-toggle" type="button" aria-label="Open chat assistant">Ask</button>
     <section id="chatbox" class="chatbox hidden" aria-label="PartHunt AI chat assistant"></section>
-    <script type="module" src="/home-car-viewer.js"></script>
     <script type="module" src="/site.js"></script>
   </body>
 </html>

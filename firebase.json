@@ -8,6 +8,13 @@
           "functionId": "vehicleLookup",
           "region": "europe-west2"
         }
+      },
+      {
+        "source": "/api/search-parts",
+        "function": {
+          "functionId": "searchParts",
+          "region": "europe-west2"
+        }
       }
     ],
     "ignore": [

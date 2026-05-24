@@ -1,0 +1,9 @@
+.git
+.DS_Store
+.env*
+.vercel
+desktop/node_modules
+ios/PartHunt/DerivedData
+ios/PartHunt/PartHunt.xcodeproj/project.xcworkspace
+ios/PartHunt/PartHunt.xcodeproj/xcuserdata
+parthunt-*.png

@@ -47,10 +47,9 @@ final class SearchViewModel: ObservableObject {
 
     func runSearch() async {
         let vehicle = Vehicle(make: make, model: model, variant: variant, year: year)
-        let search = searchService.search(vehicle: vehicle, wantedItem: wantedItem)
-        currentSearch = search
-
         do {
+            let search = try await searchService.search(vehicle: vehicle, wantedItem: wantedItem)
+            currentSearch = search
             try await firestoreService.saveSearch(search)
         } catch {
             errorMessage = error.localizedDescription
