@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" role="img" aria-label="Used front bumper thumbnail">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#eef6ff"/>
+      <stop offset="1" stop-color="#d9fbf5"/>
+    </linearGradient>
+    <linearGradient id="paint" x1="0" x2="1">
+      <stop offset="0" stop-color="#7aa7ff"/>
+      <stop offset="1" stop-color="#45c8ba"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="360" fill="url(#bg)"/>
+  <rect x="70" y="72" width="500" height="216" rx="28" fill="#fff" opacity=".78"/>
+  <path d="M106 184c28-66 91-98 196-98h36c105 0 168 32 196 98l-28 64H134l-28-64Z" fill="url(#paint)" opacity=".94"/>
+  <path d="M154 190h112c9 0 16 7 16 16v28H132l22-44Zm220 16c0-9 7-16 16-16h96l22 44H374v-28Z" fill="#f8fbff" opacity=".9"/>
+  <path d="M246 174h148c12 0 21 10 21 21v24H225v-24c0-11 9-21 21-21Z" fill="#1f2937" opacity=".82"/>
+  <path d="M154 266h332" stroke="#1f2937" stroke-width="14" stroke-linecap="round" opacity=".2"/>
+  <circle cx="150" cy="185" r="10" fill="#f8fbff"/>
+  <circle cx="490" cy="185" r="10" fill="#f8fbff"/>
+  <text x="88" y="318" fill="#1f2937" font-family="Inter,Arial" font-size="18" font-weight="700">Listing thumbnail</text>
+</svg>

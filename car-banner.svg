@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 560" role="img" aria-labelledby="title desc">
+  <title id="title">Futuristic car parts search banner</title>
+  <desc id="desc">A soft futuristic car outline with interface panels representing part search and platform trust.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#F8FBFF"/>
+      <stop offset="1" stop-color="#E8F8F4"/>
+    </linearGradient>
+    <linearGradient id="blue" x1="0" x2="1">
+      <stop offset="0" stop-color="#4F8CFF"/>
+      <stop offset="1" stop-color="#5ED6C8"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="24" stdDeviation="24" flood-color="#31577A" flood-opacity=".18"/>
+    </filter>
+  </defs>
+  <rect width="900" height="560" rx="28" fill="url(#bg)"/>
+  <path d="M88 386c43-82 108-123 197-125h244c85 0 158 41 221 122l64 17c25 7 40 29 35 54l-6 33H58l6-47c4-29 11-45 24-54Z" fill="#EEF7FF" stroke="#B9D3FF" stroke-width="4" filter="url(#shadow)"/>
+  <path d="M289 281h239c66 2 119 32 164 84H220c19-43 42-71 69-84Z" fill="#D9F6F1" stroke="#A9C8EF" stroke-width="4"/>
+  <path d="M414 283l-24 82M560 289l38 76" stroke="#93A9C3" stroke-width="4"/>
+  <circle cx="226" cy="479" r="58" fill="#1F2937"/>
+  <circle cx="226" cy="479" r="25" fill="#DDEBFA"/>
+  <circle cx="681" cy="479" r="58" fill="#1F2937"/>
+  <circle cx="681" cy="479" r="25" fill="#DDEBFA"/>
+  <rect x="94" y="83" width="245" height="122" rx="18" fill="#FFFFFF" opacity=".9" stroke="#E1E9F4"/>
+  <rect x="122" y="112" width="92" height="14" rx="7" fill="#4F8CFF"/>
+  <rect x="122" y="143" width="175" height="12" rx="6" fill="#CBD8E8"/>
+  <rect x="122" y="170" width="132" height="12" rx="6" fill="#CBD8E8"/>
+  <rect x="566" y="84" width="238" height="132" rx="18" fill="#FFFFFF" opacity=".9" stroke="#E1E9F4"/>
+  <circle cx="620" cy="132" r="25" fill="url(#blue)"/>
+  <rect x="660" y="113" width="96" height="12" rx="6" fill="#CBD8E8"/>
+  <rect x="660" y="141" width="118" height="12" rx="6" fill="#CBD8E8"/>
+  <path d="M126 332h93M658 330h92M418 418h108" stroke="url(#blue)" stroke-width="10" stroke-linecap="round"/>
+  <text x="122" y="233" fill="#2357C8" font-family="Inter, Arial" font-size="24" font-weight="800">PartHunt AI</text>
+  <text x="122" y="261" fill="#667085" font-family="Inter, Arial" font-size="17">Exact part matching</text>
+</svg>

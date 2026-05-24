@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title">
+  <title id="title">Independent Breaker Yard icon</title>
+  <rect width="96" height="96" rx="20" fill="#F8FBFF"/>
+  <path d="M25 61c7-13 15-20 29-20h9c8 0 14 7 16 20" fill="none" stroke="#4F8CFF" stroke-width="8" stroke-linecap="round"/>
+  <path d="M24 61h55" stroke="#5ED6C8" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="35" cy="65" r="8" fill="#1F2937"/>
+  <circle cx="66" cy="65" r="8" fill="#1F2937"/>
+  <path d="M34 31h28l8 12H28l6-12Z" fill="#A78BFA" opacity=".85"/>
+  <text x="48" y="25" text-anchor="middle" font-family="Inter, Arial" font-size="12" font-weight="800" fill="#2357C8">IBY</text>
+</svg>

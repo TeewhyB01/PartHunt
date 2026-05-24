@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" role="img" aria-label="Recycled bumper assembly thumbnail">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#edfdf9"/>
+      <stop offset="1" stop-color="#eef3ff"/>
+    </linearGradient>
+    <linearGradient id="part" x1="0" x2="1">
+      <stop offset="0" stop-color="#9bb8ff"/>
+      <stop offset="1" stop-color="#a78bfa"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="360" fill="url(#bg)"/>
+  <rect x="76" y="64" width="488" height="236" rx="30" fill="#fff" opacity=".78"/>
+  <path d="M94 196c32-72 96-106 199-106h54c103 0 167 34 199 106l-34 70H128l-34-70Z" fill="url(#part)" opacity=".9"/>
+  <path d="M174 194h292c18 0 33 15 33 33v14H141v-14c0-18 15-33 33-33Z" fill="#182235" opacity=".8"/>
+  <path d="M154 214h100c11 0 20 9 20 20v18H128l26-38Zm232 20c0-11 9-20 20-20h80l26 38H386v-18Z" fill="#f8fbff" opacity=".86"/>
+  <path d="M246 134h148" stroke="#fff" stroke-width="9" stroke-linecap="round" opacity=".9"/>
+  <path d="M164 278h312" stroke="#1f2937" stroke-width="11" stroke-linecap="round" opacity=".18"/>
+  <text x="88" y="320" fill="#1f2937" font-family="Inter,Arial" font-size="18" font-weight="700">Recycled part photo</text>
+</svg>

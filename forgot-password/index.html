@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Forgot Password · PartHunt AI</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/multipage.css" />
+  </head>
+  <body data-page="forgot-password">
+    <div id="siteNav"></div>
+    <main class="section auth-layout">
+      <section class="auth-page-card"><p class="eyebrow">Password reset</p><h1>Reset your password.</h1><p class="muted">Enter your email and Firebase will send reset instructions.</p></section>
+      <form id="forgotForm" class="auth-page-card auth-form">
+        <label><span>Email address</span><input id="email" type="email" required /></label>
+        <button class="button button-primary" type="submit">Send reset email</button>
+        <p id="resetStatus" class="muted"></p>
+      </form>
+    </main>
+    <div id="siteFooter"></div><div id="loginPrompt"></div>
+    <script type="module" src="/site.js"></script>
+  </body>
+</html>

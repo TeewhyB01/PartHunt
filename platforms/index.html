@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Platforms · PartHunt AI</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles.css" /><link rel="stylesheet" href="/multipage.css" />
+  </head>
+  <body data-page="platforms">
+    <div id="siteNav"></div>
+    <main>
+      <section class="page-hero compact"><div><p class="eyebrow">Platform directory</p><h1>Compare where people buy used car parts.</h1><p class="hero-copy">Browse platforms by rating, successful purchases, reviews, and common parts bought.</p></div></section>
+      <section class="section">
+        <div class="form-panel form-grid compact">
+          <label>
+            <span>Category</span>
+            <select id="platformCategoryFilter">
+              <option value="">All categories</option>
+              <option value="online_marketplace">Online marketplace</option>
+              <option value="scrap_yard">Scrap yard</option>
+              <option value="breaker_yard">Breaker yard</option>
+              <option value="salvage_yard">Salvage yard</option>
+              <option value="car_parts_retailer">Car parts retailer</option>
+              <option value="independent_seller">Independent seller</option>
+              <option value="auction_platform">Auction platform</option>
+              <option value="local_garage">Local garage</option>
+              <option value="specialist_parts_supplier">Specialist supplier</option>
+            </select>
+          </label>
+          <label>
+            <span>Sort by</span>
+            <select id="platformSort">
+              <option value="purchases">Most purchases</option>
+              <option value="rating">Highest rated</option>
+              <option value="reviews">Most reviewed</option>
+              <option value="newest">Newest added</option>
+            </select>
+          </label>
+        </div>
+        <div id="platformGrid" class="platform-grid"></div>
+      </section>
+    </main>
+    <div id="siteFooter"></div><div id="loginPrompt"></div><button id="chatToggle" class="chat-toggle" type="button">Ask</button><section id="chatbox" class="chatbox hidden"></section>
+    <script type="module" src="/site.js"></script>
+  </body>
+</html>

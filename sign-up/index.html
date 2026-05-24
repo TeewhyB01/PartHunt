@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Create Account · PartHunt AI</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/multipage.css" />
+  </head>
+  <body data-page="sign-up">
+    <div id="siteNav"></div>
+    <main class="section auth-layout">
+      <section class="auth-page-card">
+        <p class="eyebrow">Create account</p>
+        <h1>Start tracking your part searches.</h1>
+        <p class="muted">Create a free account to run searches, save parts, open exact listing links, and review platforms.</p>
+      </section>
+      <form id="signUpForm" class="auth-page-card auth-form">
+        <label><span>Full name</span><input id="fullName" required /></label>
+        <label><span>Email address</span><input id="email" type="email" required /></label>
+        <label><span>Password</span><input id="password" type="password" required minlength="6" /></label>
+        <label><span>Confirm password</span><input id="confirmPassword" type="password" required minlength="6" /></label>
+        <label><span>Country</span><input id="country" placeholder="United Kingdom" /></label>
+        <label><span>Preferred car make</span><input id="preferredMake" placeholder="Ford" /></label>
+        <label><span>User type</span><select id="userType"><option value="car_owner">Car owner</option><option value="mechanic">Mechanic</option><option value="garage">Garage</option><option value="breaker_yard">Breaker yard</option><option value="other">Other</option></select></label>
+        <label class="checkbox-row"><input required type="checkbox" /><span>Accept terms and privacy policy</span></label>
+        <button class="button button-primary" type="submit">Create Account</button>
+        <a href="/sign-in/">Already have an account?</a>
+      </form>
+    </main>
+    <div id="siteFooter"></div><div id="loginPrompt"></div>
+    <button id="chatToggle" class="chat-toggle" type="button" aria-label="Open chat assistant">Ask</button><section id="chatbox" class="chatbox hidden"></section>
+    <script type="module" src="/site.js"></script>
+  </body>
+</html>

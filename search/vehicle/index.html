@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>Search by Vehicle · PartHunt AI</title><link rel="icon" href="/favicon.svg" type="image/svg+xml" /><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" /><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" /><link rel="stylesheet" href="/styles.css" /><link rel="stylesheet" href="/multipage.css" /></head>
+  <body data-page="search-vehicle">
+    <div id="siteNav"></div>
+    <main>
+      <section class="page-hero compact"><div><p class="eyebrow">Vehicle search</p><h1>Choose your vehicle first.</h1><p class="hero-copy">Enter details manually, or use a UK registration number to pull basic vehicle details from the DVLA Vehicle Enquiry Service.</p></div></section>
+      <section class="section">
+        <div class="form-panel registration-lookup-panel">
+          <div>
+            <p class="eyebrow">UK registration lookup</p>
+            <h2>Find vehicle by registration</h2>
+            <p class="muted">Uses DVLA VES via a backend proxy when configured. DVLA returns make, year, fuel type, engine size and related details.</p>
+          </div>
+          <div class="registration-row">
+            <label><span>Registration number</span><input id="registrationNumber" autocomplete="off" placeholder="AB12 CDE" /></label>
+            <button id="lookupRegistrationButton" class="button button-secondary" type="button">Find Vehicle</button>
+          </div>
+          <p id="registrationLookupStatus" class="muted" role="status"></p>
+        </div>
+        <form id="vehicleSearchForm" class="form-panel form-grid">
+          <label><span>Make</span><select id="make" required><option value="">Select make</option></select></label>
+          <label><span>Model</span><select id="model" required disabled><option value="">Select make first</option></select></label>
+          <label><span>Variant</span><select id="variant" required disabled><option value="">Select model first</option></select></label>
+          <label><span>Year</span><select id="year" required disabled><option value="">Select variant first</option></select></label>
+          <label class="form-wide"><span>Item you are looking for</span><input id="wantedItem" required placeholder="Front bumper, wing mirror, alternator..." /></label>
+          <button class="button button-primary form-submit" type="submit"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><span>Search Part</span></button>
+        </form>
+      </section>
+    </main>
+    <div id="siteFooter"></div><div id="loginPrompt"></div><button id="chatToggle" class="chat-toggle" type="button">Ask</button><section id="chatbox" class="chatbox hidden"></section><script type="module" src="/site.js"></script>
+  </body>
+</html>

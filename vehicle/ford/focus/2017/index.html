@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>Vehicle Model · PartHunt AI</title><link rel="icon" href="/favicon.svg" type="image/svg+xml" /><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" /><link rel="stylesheet" href="/styles.css" /><link rel="stylesheet" href="/multipage.css" /></head>
+  <body data-page="vehicle-model">
+    <div id="siteNav"></div>
+    <main>
+      <section class="page-hero compact"><div><p class="eyebrow">Vehicle model selector</p><h1 id="vehicleTitle">2017 Ford Focus Hatchback</h1><p class="hero-copy">MVP uses a body-type-based 2D model template with clickable part hotspots. Three.js/3D models can be added later.</p></div></section>
+      <section class="section vehicle-model-page">
+        <aside class="form-panel category-sidebar" id="partList"></aside>
+        <div class="vehicle-card model-visual">
+          <div class="diagram-wrap">
+            <svg viewBox="0 0 980 430" role="img" aria-label="Body-type based hatchback model">
+              <path class="car-base" d="M108 254 C168 180 230 148 334 145 H586 C686 145 770 184 842 247 L894 258 C920 264 936 285 932 311 L929 329 H70 L74 298 C77 276 90 262 108 254 Z" />
+              <path class="car-glass" d="M330 163 H580 C654 166 714 193 768 238 H264 C283 204 303 179 330 163 Z" />
+              <rect class="part-hotspot" x="72" y="268" width="105" height="48" rx="10"></rect>
+              <rect class="part-hotspot" x="132" y="238" width="72" height="24" rx="8"></rect>
+              <rect class="part-hotspot" x="284" y="198" width="124" height="62" rx="10"></rect>
+              <rect class="part-hotspot" x="438" y="292" width="122" height="48" rx="10"></rect>
+              <g class="wheel"><circle cx="234" cy="326" r="56"></circle><circle cx="234" cy="326" r="24"></circle></g>
+              <g class="wheel"><circle cx="748" cy="326" r="56"></circle><circle cx="748" cy="326" r="24"></circle></g>
+            </svg>
+          </div>
+          <p class="model-note">Template shown: hatchback. Production can map make/model/year to real assets or a vehicle model API.</p>
+        </div>
+        <aside id="selectedPartPanel" class="part-panel"></aside>
+      </section>
+    </main>
+    <div id="siteFooter"></div><div id="loginPrompt"></div><button id="chatToggle" class="chat-toggle" type="button">Ask</button><section id="chatbox" class="chatbox hidden"></section><script type="module" src="/site.js"></script>
+  </body>
+</html>

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sign In · PartHunt AI</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/multipage.css" />
+  </head>
+  <body data-page="sign-in">
+    <div id="siteNav"></div>
+    <main class="section auth-layout">
+      <section class="auth-page-card">
+        <p class="eyebrow">Welcome back</p>
+        <h1>Sign in</h1>
+        <p class="muted">Access search history, saved parts, exact listing links, and platform reviews.</p>
+      </section>
+      <form id="signInForm" class="auth-page-card auth-form">
+        <label><span>Email address</span><input id="email" type="email" autocomplete="email" required /></label>
+        <label><span>Password</span><input id="password" type="password" autocomplete="current-password" required /></label>
+        <label class="checkbox-row"><input type="checkbox" /><span>Remember me</span></label>
+        <button class="button button-primary" type="submit">Sign In</button>
+        <button id="googleSignIn" class="button button-secondary" type="button">Continue with Google</button>
+        <a href="/forgot-password/">Forgot password?</a>
+        <a href="/sign-up/">Create Account</a>
+      </form>
+    </main>
+    <div id="siteFooter"></div><div id="loginPrompt"></div>
+    <button id="chatToggle" class="chat-toggle" type="button" aria-label="Open chat assistant">Ask</button><section id="chatbox" class="chatbox hidden"></section>
+    <script type="module" src="/site.js"></script>
+  </body>
+</html>

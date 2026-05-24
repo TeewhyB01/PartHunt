@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="PartHunt AI helps drivers find used, scrap, recycled, and replacement car parts online." />
+    <title>PartHunt AI</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/multipage.css" />
+  </head>
+  <body data-page="home">
+    <div id="siteNav"></div>
+    <main>
+      <section class="page-hero home-banner">
+        <div class="home-banner-copy">
+          <p class="eyebrow">Used parts. Trusted platforms. Exact seller links.</p>
+          <h1>Find the exact car part you need, faster.</h1>
+          <p class="hero-copy">Search by part number, choose your vehicle, inspect a model, compare results, and track where you bought from.</p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="/search/part-number/">Search by Part Number</a>
+            <a class="button button-secondary" href="/search/vehicle/">Search by Vehicle</a>
+          </div>
+        </div>
+        <div class="hero-panel homepage-preview car-viewer-panel" aria-label="Interactive skeletal 3D car model preview">
+          <div id="homeCarViewer" class="home-car-viewer" role="img" aria-label="Skeletal 3D car model preview"></div>
+          <div class="scan-card">
+            <span class="scan-line"></span>
+            <p>Search flow</p>
+            <strong>Vehicle → Part selector → Results → Exact listing</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="section search-entry">
+        <div class="section-heading">
+          <p class="eyebrow">Start here</p>
+          <h2>Choose your search journey.</h2>
+        </div>
+        <div class="page-card-grid two">
+          <a class="journey-card" href="/search/part-number/">
+            <span class="feature-icon">PN</span>
+            <h3>Search by part number</h3>
+            <p>Use a known OEM or supplier part number and optional vehicle details.</p>
+          </a>
+          <a class="journey-card" href="/search/vehicle/">
+            <span class="feature-icon">CAR</span>
+            <h3>Search by vehicle</h3>
+            <p>Enter make, model, year, and body type, then select a part from a car model.</p>
+          </a>
+        </div>
+      </section>
+
+      <section class="section feature-band" aria-label="How PartHunt AI works">
+        <article>
+          <span class="feature-icon">01</span>
+          <h3>Identify</h3>
+          <p>Turn vague descriptions into likely part names and compatibility checks.</p>
+        </article>
+        <article>
+          <span class="feature-icon">02</span>
+          <h3>Search</h3>
+          <p>Generate smarter search terms from part numbers, vehicle details, and aliases.</p>
+        </article>
+        <article>
+          <span class="feature-icon">03</span>
+          <h3>Compare</h3>
+          <p>View results inside the app before opening exact external listing pages.</p>
+        </article>
+        <article>
+          <span class="feature-icon">04</span>
+          <h3>Review</h3>
+          <p>Track purchases and rate the platform you bought from.</p>
+        </article>
+      </section>
+
+      <section class="section trust-section">
+        <div class="results-header">
+          <div>
+            <p class="eyebrow">Platform trust</p>
+            <h2>Top Platforms Users Are Buying From</h2>
+            <p class="muted">Demo seed data is shown until real user reviews are added.</p>
+          </div>
+          <a class="button button-secondary" href="/platforms/">View All Platforms</a>
+        </div>
+        <div id="platformGrid" class="platform-grid"></div>
+      </section>
+
+      <section class="section page-card trust-safety">
+        <div>
+          <p class="eyebrow">Trust and safety</p>
+          <h2>Check before you buy.</h2>
+          <p class="muted">PartHunt AI reminds users to verify part number, side, vehicle year range, condition, delivery cost, and return policy before leaving the app.</p>
+        </div>
+        <a class="button button-primary" href="/platforms/">View Platform Reviews</a>
+      </section>
+    </main>
+    <div id="siteFooter"></div>
+    <div id="loginPrompt"></div>
+    <button id="chatToggle" class="chat-toggle" type="button" aria-label="Open chat assistant">Ask</button>
+    <section id="chatbox" class="chatbox hidden" aria-label="PartHunt AI chat assistant"></section>
+    <script type="module" src="/home-car-viewer.js"></script>
+    <script type="module" src="/site.js"></script>
+  </body>
+</html>

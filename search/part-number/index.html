@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>Search by Part Number · PartHunt AI</title><link rel="icon" href="/favicon.svg" type="image/svg+xml" /><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" /><link rel="stylesheet" href="/styles.css" /><link rel="stylesheet" href="/multipage.css" /></head>
+  <body data-page="search-part-number">
+    <div id="siteNav"></div>
+    <main>
+      <section class="page-hero compact"><div><p class="eyebrow">Part number search</p><h1>Search using an exact part number.</h1><p class="hero-copy">Guests can enter details, but full search and exact listing links require sign-in.</p></div></section>
+      <section class="section">
+        <form id="partSearchForm" class="form-panel form-grid">
+          <label><span>Part number</span><input id="partNumber" required placeholder="BM51-17K945-AB" /></label>
+          <label><span>Make</span><input id="make" placeholder="Ford" /></label>
+          <label><span>Model</span><input id="model" placeholder="Focus" /></label>
+          <label><span>Year</span><input id="year" inputmode="numeric" placeholder="2017" /></label>
+          <label><span>Engine size</span><input id="engineSize" placeholder="1.0 EcoBoost" /></label>
+          <label><span>Fuel type</span><select id="fuelType"><option value="">Any</option><option>Petrol</option><option>Diesel</option><option>Hybrid</option><option>Electric</option></select></label>
+          <label><span>Transmission</span><select id="transmission"><option value="">Any</option><option>Manual</option><option>Automatic</option></select></label>
+          <button class="button button-primary form-submit" type="submit">Search Part</button>
+        </form>
+      </section>
+    </main>
+    <div id="siteFooter"></div><div id="loginPrompt"></div><button id="chatToggle" class="chat-toggle" type="button">Ask</button><section id="chatbox" class="chatbox hidden"></section><script type="module" src="/site.js"></script>
+  </body>
+</html>

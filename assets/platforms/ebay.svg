@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title">
+  <title id="title">eBay marketplace icon</title>
+  <rect width="96" height="96" rx="20" fill="#F8FBFF"/>
+  <path d="M20 56c0-15 11-27 28-27s28 12 28 27" fill="none" stroke="#4F8CFF" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="28" cy="56" r="8" fill="#E94235"/>
+  <circle cx="44" cy="44" r="8" fill="#FABB05"/>
+  <circle cx="60" cy="56" r="8" fill="#34A853"/>
+  <path d="M28 68h40" stroke="#4285F4" stroke-width="8" stroke-linecap="round"/>
+  <text x="48" y="82" text-anchor="middle" font-family="Inter, Arial" font-size="14" font-weight="800" fill="#1F2937">eBay</text>
+</svg>

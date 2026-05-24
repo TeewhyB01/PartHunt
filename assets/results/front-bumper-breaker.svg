@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" role="img" aria-label="Breaker yard bumper thumbnail">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#f7fafc"/>
+      <stop offset="1" stop-color="#e8ecff"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="360" fill="url(#bg)"/>
+  <rect x="54" y="58" width="532" height="244" rx="24" fill="#fff" opacity=".82"/>
+  <path d="M98 204c20-56 76-90 157-96l126-10c86-7 142 29 165 106l-30 62H128l-30-62Z" fill="#d8e3ef"/>
+  <path d="M126 220h148c14 0 26 12 26 26v16H118l8-42Zm232 26c0-14 12-26 26-26h130l8 42H358v-16Z" fill="#eef6ff"/>
+  <path d="M232 186h184c16 0 29 13 29 29v12H203v-12c0-16 13-29 29-29Z" fill="#344155"/>
+  <path d="M142 162c58-28 114-43 169-43 60 0 116 15 167 43" fill="none" stroke="#70a5ff" stroke-width="8" stroke-linecap="round" opacity=".72"/>
+  <path d="M157 283h326" stroke="#5ed6c8" stroke-width="10" stroke-linecap="round"/>
+  <text x="88" y="320" fill="#1f2937" font-family="Inter,Arial" font-size="18" font-weight="700">Used bumper image</text>
+</svg>

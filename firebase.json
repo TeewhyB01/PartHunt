@@ -1,0 +1,28 @@
+{
+  "hosting": {
+    "public": ".",
+    "rewrites": [
+      {
+        "source": "/api/vehicle-lookup",
+        "function": {
+          "functionId": "vehicleLookup",
+          "region": "europe-west2"
+        }
+      }
+    ],
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ]
+  },
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  },
+  "functions": {
+    "source": "functions"
+  }
+}

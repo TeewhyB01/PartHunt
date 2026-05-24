@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+  <head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>Search Results · PartHunt AI</title><link rel="icon" href="/favicon.svg" type="image/svg+xml" /><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" /><link rel="stylesheet" href="/styles.css" /><link rel="stylesheet" href="/multipage.css" /></head>
+  <body data-page="search-results">
+    <div id="siteNav"></div>
+    <main>
+      <section class="page-hero compact"><div><p class="eyebrow">Search results</p><h1 id="resultsTitle">Search results</h1><p class="hero-copy">Exact external seller links are available to signed-in users.</p></div></section>
+      <section class="section results-layout">
+        <aside class="filters"><details open><summary>Filters</summary><label><span>Condition</span><select id="conditionFilter"><option value="">Any</option><option value="Used">Used</option><option value="Refurbished">Refurbished</option><option value="New">New</option><option value="Scrap/breaker part">Scrap/breaker part</option></select></label><label class="checkbox-row"><input id="deliveryFilter" type="checkbox" /><span>Delivery available</span></label></details></aside>
+        <div id="resultsGrid" class="results-grid"></div>
+      </section>
+    </main>
+    <div id="siteFooter"></div><div id="loginPrompt"></div><button id="chatToggle" class="chat-toggle" type="button">Ask</button><section id="chatbox" class="chatbox hidden"></section><script type="module" src="/site.js"></script>
+  </body>
+</html>

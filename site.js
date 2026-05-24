@@ -1,0 +1,821 @@
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import {
+  createUserWithEmailAndPassword,
+  getAuth,
+  GoogleAuthProvider,
+  onAuthStateChanged,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  signOut,
+  updateProfile,
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  getFirestore,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+import { demoPlatforms, demoResults, firebaseConfig, parts, popularVehicleMakes, popularVehicleVariants } from "/site-data.js";
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const provider = new GoogleAuthProvider();
+const page = document.body.dataset.page;
+let currentUser = null;
+
+const $ = (selector) => document.querySelector(selector);
+const $$ = (selector) => Array.from(document.querySelectorAll(selector));
+
+function initials(value) {
+  return value.split(/\s+/).map((word) => word[0]).join("").slice(0, 2).toUpperCase();
+}
+
+function stars(rating) {
+  const rounded = Math.round(Number(rating) || 0);
+  return `${"★".repeat(rounded)}${"☆".repeat(Math.max(0, 5 - rounded))}`;
+}
+
+function setTheme(theme) {
+  const next = theme || localStorage.getItem("parthunt-theme") || "light";
+  document.documentElement.dataset.theme = next;
+  document.body.dataset.theme = next;
+  localStorage.setItem("parthunt-theme", next);
+  $$(".theme-toggle").forEach((button) => {
+    button.textContent = next === "dark" ? "☀" : "☾";
+    button.setAttribute("aria-label", next === "dark" ? "Switch to light mode" : "Switch to dark mode");
+  });
+}
+
+function renderShell() {
+  $("#siteNav").innerHTML = `
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="PartHunt AI home">
+        <span class="brand-mark" aria-hidden="true">PH</span>
+        <span><strong>PartHunt AI</strong><small>Scrap part finder</small></span>
+      </a>
+      <nav class="top-nav" aria-label="Main navigation">
+        <a href="/">Home</a>
+        <a href="/search/part-number/">Search Part Number</a>
+        <a href="/search/vehicle/">Search Vehicle</a>
+        <a href="/platforms/">View Platform Reviews</a>
+      </nav>
+      <div class="auth-zone">
+        <button class="theme-icon-button theme-toggle" type="button" aria-label="Toggle dark mode">☾</button>
+        <a id="navSignIn" class="button button-ghost" href="/sign-in/">Sign In</a>
+        <a id="navSignUp" class="button button-primary" href="/sign-up/">Create Account</a>
+        <div id="accountMenu" class="account-menu hidden">
+          <button id="accountMenuButton" class="account-menu-button" type="button" aria-haspopup="true" aria-expanded="false">
+            <span class="account-user-icon" aria-hidden="true">${categoryIcon("independent_seller")}</span>
+            <span id="userStatus" class="user-status">User</span>
+          </button>
+          <div class="account-dropdown" role="menu">
+            <a role="menuitem" href="/dashboard/">Dashboard</a>
+            <a role="menuitem" href="/history/">Search History</a>
+            <a role="menuitem" href="/saved-parts/">Saved Parts</a>
+            <a role="menuitem" href="/settings/">Settings</a>
+            <button id="navSignOut" role="menuitem" type="button">Sign out</button>
+          </div>
+        </div>
+      </div>
+    </header>
+  `;
+  $("#siteFooter").innerHTML = `
+    <footer class="site-footer">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a class="brand" href="/" aria-label="PartHunt AI home">
+            <span class="brand-mark" aria-hidden="true">PH</span>
+            <span><strong>PartHunt AI</strong><small>Scrap part finder</small></span>
+          </a>
+          <p>Search smarter, verify compatibility, and leave the app only when you have the exact seller listing.</p>
+          <div class="footer-pills" aria-label="PartHunt trust promises">
+            <span>Exact listing checks</span>
+            <span>Platform reviews</span>
+            <span>Firebase-secured accounts</span>
+          </div>
+        </div>
+        <nav aria-label="Footer search links">
+          <h3>Find Parts</h3>
+          <a href="/search/part-number/">Search Part Number</a>
+          <a href="/search/vehicle/">Search Vehicle</a>
+          <a href="/vehicle/ford/focus/2017/">Vehicle Model Selector</a>
+          <a href="/search/results/demo-search/">Demo Results</a>
+        </nav>
+        <nav aria-label="Footer trust links">
+          <h3>Trust</h3>
+          <a href="/platforms/">Platform Reviews</a>
+          <a href="/platforms/ebay/">eBay Review</a>
+          <a href="/platforms/breakerlink/">BreakerLink Review</a>
+          <a href="/platforms/parts-gateway/">Parts Gateway Review</a>
+        </nav>
+        <nav aria-label="Footer policy links">
+          <h3>Policy</h3>
+          <a href="/privacy/">Privacy Policy</a>
+          <a href="/terms/">Terms of Use</a>
+          <a href="/safety/">Buyer Safety</a>
+          <a href="/contact/">Contact Support</a>
+        </nav>
+      </div>
+      <div class="footer-bottom">
+        <span>Built for careful used-part buying.</span>
+        <span>Before buying, check part number, side, condition, delivery cost, and return policy.</span>
+      </div>
+    </footer>
+  `;
+  $("#loginPrompt").innerHTML = `
+    <div id="loginModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="loginModalTitle">
+      <div class="purchase-modal">
+        <p class="eyebrow">Account required</p>
+        <h2 id="loginModalTitle">Sign in to continue</h2>
+        <p>Create a free account to open exact seller links, save parts, and track your search history.</p>
+        <div class="login-modal-actions">
+          <a id="modalSignIn" class="button button-primary" href="/sign-in/">Sign In</a>
+          <a id="modalSignUp" class="button button-secondary" href="/sign-up/">Create Account</a>
+          <button id="modalContinue" class="button button-ghost" type="button">Continue Browsing</button>
+        </div>
+      </div>
+    </div>
+  `;
+  const chat = $("#chatbox");
+  if (chat) {
+    chat.innerHTML = `
+      <header><div><strong>PartHunt Agent</strong><span>AI assistant mode</span></div><button id="chatClose" class="icon-button" type="button" aria-label="Close chat">×</button></header>
+      <div id="chatMessages" class="chat-messages" aria-live="polite"><div class="message"><strong>PartHunt Agent</strong>Tell me the make, model, year, and the part location. I can suggest alternative names and compatibility checks.</div></div>
+      <form id="chatForm" class="chat-form"><label class="sr-only" for="chatInput">Message</label><input id="chatInput" placeholder="Describe the part you need..." autocomplete="off" /><button class="button button-primary" type="submit">Send</button></form>
+    `;
+  }
+}
+
+function wireShell() {
+  $$(".theme-toggle").forEach((button) => button.addEventListener("click", () => setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark")));
+  $("#navSignOut")?.addEventListener("click", () => signOut(auth));
+  $("#accountMenuButton")?.addEventListener("click", () => {
+    const menu = $("#accountMenu");
+    const open = menu.classList.toggle("open");
+    $("#accountMenuButton").setAttribute("aria-expanded", String(open));
+  });
+  $("#modalContinue")?.addEventListener("click", () => $("#loginModal").classList.add("hidden"));
+  $("#chatToggle")?.addEventListener("click", () => {
+    $("#chatbox").classList.remove("hidden");
+    $("#chatToggle").classList.add("hidden");
+  });
+  $("#chatClose")?.addEventListener("click", () => {
+    $("#chatbox").classList.add("hidden");
+    $("#chatToggle").classList.remove("hidden");
+  });
+  $("#chatForm")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const input = $("#chatInput");
+    const text = input.value.trim();
+    if (!text) return;
+    $("#chatMessages").insertAdjacentHTML("beforeend", `<div class="message user"><strong>You</strong>${text}</div>`);
+    const reply = text.toLowerCase().includes("under") ? "That may be an undertray, splash shield, or lower engine cover. Check fixings and engine/body type." : "Good starting point. Confirm part number, vehicle side, condition, delivery cost, and return policy.";
+    $("#chatMessages").insertAdjacentHTML("beforeend", `<div class="message"><strong>PartHunt Agent</strong>${reply}</div>`);
+    input.value = "";
+  });
+}
+
+function requireAuth(action, returnTo = location.pathname) {
+  if (currentUser) return true;
+  sessionStorage.setItem("parthunt-return-to", returnTo);
+  if (action) sessionStorage.setItem("parthunt-pending-action", JSON.stringify(action));
+  $("#loginModal")?.classList.remove("hidden");
+  return false;
+}
+
+function isExactListingUrl(url, platform) {
+  try {
+    const parsed = new URL(url);
+    const platformUrl = platform?.websiteUrl ? new URL(platform.websiteUrl) : null;
+    if (!parsed.protocol.startsWith("http")) return false;
+    if (!platformUrl) return parsed.pathname.length > 1;
+    return parsed.hostname.replace("www.", "") === platformUrl.hostname.replace("www.", "") && parsed.pathname.replace(/\/$/, "") !== "";
+  } catch {
+    return false;
+  }
+}
+
+function platformLogo(platform, small = false) {
+  if (platform.logoUrl) return `<img class="platform-logo ${small ? "small" : ""}" src="${platform.logoUrl}" alt="${platform.name} logo" />`;
+  return `<span class="platform-logo ${small ? "small" : ""}" aria-hidden="true">${initials(platform.name)}</span>`;
+}
+
+function categoryIcon(categoryKey) {
+  const icons = {
+    online_marketplace: "M18 20h28l5 10h15l9 18H9l9-28Zm5 9-5 10h40l-5-10H23Zm9 25h8v8h-8v-8Zm24 0h8v8h-8v-8Z",
+    breaker_yard: "M15 50c5-12 14-19 27-19h12c11 0 20 7 27 19v12h-9a10 10 0 0 1-20 0H44a10 10 0 0 1-20 0h-9V50Zm26-9h17c5 0 9 3 13 9H29c3-6 7-9 12-9Z",
+    car_parts_retailer: "M21 25h54v42H21V25Zm9 10v22h36V35H30Zm8 29h20v8H38v-8Z",
+    specialist_parts_supplier: "M48 14l30 17v34L48 82 18 65V31l30-17Zm0 13L30 37v21l18 10 18-10V37L48 27Zm-8 15h16v16H40V42Z",
+    scrap_yard: "M18 68h60v10H18V68Zm8-8 12-28h20l12 28H26Zm20-39h8v13h-8V21Zm-12 7 6-6 9 9-6 6-9-9Z",
+    salvage_yard: "M20 60h56v10H20V60Zm8-9h40l-8-20H36l-8 20Zm15-28h10v11H43V23Z",
+    independent_seller: "M48 18a15 15 0 1 1 0 30 15 15 0 0 1 0-30Zm-27 58c3-16 14-25 27-25s24 9 27 25H21Z",
+    auction_platform: "M25 31l20-14 8 11-20 14-8-11Zm18 27 20-14 8 11-20 14-8-11ZM30 45l7-5 22 31-7 5-22-31Zm35 28h16v8H46v-8h19Z",
+    local_garage: "M18 75V36l30-18 30 18v39H18Zm13-10h34V42L48 32 31 42v23Zm9-15h16v15H40V50Z",
+  };
+  const path = icons[categoryKey] || "M20 22h56v52H20V22Zm10 10v32h36V32H30Z";
+  return `<svg class="category-icon" viewBox="0 0 96 96" aria-hidden="true"><path d="${path}"/></svg>`;
+}
+
+function renderPlatformCards(containerSelector = "#platformGrid", list = demoPlatforms) {
+  const container = $(containerSelector);
+  if (!container) return;
+  container.innerHTML = list.map((platform) => `
+    <article class="platform-card">
+      <div class="platform-image">${platformLogo(platform)}</div>
+      <div>
+        <h3>${platform.name}</h3>
+        <span class="category-badge">${categoryIcon(platform.categoryKey)}${platform.category}</span>
+      </div>
+      <div><span class="stars">${stars(platform.averageRating)}</span> <strong>${platform.averageRating}/5</strong></div>
+      <div class="result-meta"><span class="tag">${platform.reviewCount} reviews</span><span class="tag">${platform.successfulPurchaseCount} purchases</span></div>
+      <p class="muted">Popular for: ${platform.topPartCategories.join(", ")}</p>
+      <p>${platform.summary}</p>
+      <a class="button button-secondary" href="/platforms/${platform.slug}/">View Platform Review</a>
+    </article>
+  `).join("");
+}
+
+function initPlatformDirectory() {
+  const category = $("#platformCategoryFilter");
+  const sort = $("#platformSort");
+  if (!category || !sort) return;
+
+  const apply = () => {
+    let platforms = [...demoPlatforms];
+    if (category.value) {
+      platforms = platforms.filter((platform) => platform.categoryKey === category.value);
+    }
+    if (sort.value === "rating") {
+      platforms.sort((a, b) => b.averageRating - a.averageRating || b.successfulPurchaseCount - a.successfulPurchaseCount);
+    } else if (sort.value === "reviews") {
+      platforms.sort((a, b) => b.reviewCount - a.reviewCount || b.averageRating - a.averageRating);
+    } else if (sort.value === "newest") {
+      platforms.reverse();
+    } else {
+      platforms.sort((a, b) => b.successfulPurchaseCount - a.successfulPurchaseCount || b.averageRating - a.averageRating);
+    }
+    renderPlatformCards("#platformGrid", platforms);
+  };
+
+  category.addEventListener("change", apply);
+  sort.addEventListener("change", apply);
+  apply();
+}
+
+async function saveSearch(search) {
+  if (!currentUser) return null;
+  const ref = await addDoc(collection(db, "users", currentUser.uid, "searchHistory"), {
+    ...search,
+    userId: currentUser.uid,
+    purchaseStatus: "still_looking",
+    searchedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  return ref.id;
+}
+
+function slugify(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function hashString(value) {
+  return [...String(value || "")].reduce((hash, character) => ((hash << 5) - hash + character.charCodeAt(0)) | 0, 0);
+}
+
+function priceRangeForPart(partName) {
+  const value = String(partName || "").toLowerCase();
+  if (value.includes("engine")) return [650, 2800];
+  if (value.includes("gearbox") || value.includes("transmission")) return [380, 1600];
+  if (value.includes("turbo")) return [180, 720];
+  if (value.includes("ecu")) return [90, 430];
+  if (value.includes("alternator") || value.includes("starter")) return [45, 240];
+  if (value.includes("bumper") || value.includes("bonnet") || value.includes("door")) return [55, 360];
+  if (value.includes("mirror") || value.includes("light") || value.includes("headlamp")) return [35, 260];
+  if (value.includes("wheel") || value.includes("tyre")) return [40, 520];
+  if (value.includes("battery")) return [35, 190];
+  return [25, 320];
+}
+
+function createSearchResults(search) {
+  const vehicle = search.vehicle || {};
+  const partName = search.selectedPart?.name || vehicle.wantedItem || search.partNumber || "car part";
+  const vehicleName = [vehicle.year, vehicle.make, vehicle.model, vehicle.variant].filter(Boolean).join(" ");
+  const queryTitle = [vehicleName, partName].filter(Boolean).join(" ");
+  const seed = Math.abs(hashString(`${search.rawQuery}-${partName}-${vehicleName}`));
+  const [minPrice, maxPrice] = priceRangeForPart(partName);
+  const conditions = ["Used", "Used", "Used", "Refurbished", "Used", "New", "Scrap/breaker part", "Used", "Refurbished", "Used"];
+  const locations = ["Manchester", "Birmingham", "Leeds", "Bristol", "Glasgow", "London", "Cardiff", "Nottingham", "Liverpool", "Sheffield"];
+  const confidence = ["High match", "High match", "Possible match", "Possible match", "Check carefully", "Possible match", "High match", "Possible match", "Check carefully", "Possible match"];
+  const platformSequence = [
+    demoPlatforms.find((platform) => platform.id === "ebay"),
+    demoPlatforms.find((platform) => platform.id === "breakerlink"),
+    demoPlatforms.find((platform) => platform.id === "parts-gateway"),
+    demoPlatforms.find((platform) => platform.id === "1st-choice-spares"),
+    demoPlatforms.find((platform) => platform.id === "local-scrap-yard"),
+    demoPlatforms.find((platform) => platform.id === "independent-breaker-yard"),
+    demoPlatforms.find((platform) => platform.id === "ebay"),
+    demoPlatforms.find((platform) => platform.id === "parts-gateway"),
+    demoPlatforms.find((platform) => platform.id === "breakerlink"),
+    demoPlatforms.find((platform) => platform.id === "ebay"),
+  ].filter(Boolean);
+  const titleTemplates = [
+    `${queryTitle} used replacement part`,
+    `${queryTitle} breaker yard quote`,
+    `${queryTitle} tested recycled part`,
+    `${queryTitle} supplier matched listing`,
+    `${queryTitle} collection-only salvage part`,
+    `${queryTitle} inspected used part`,
+    `${queryTitle} exact-fit possible match`,
+    `${queryTitle} replacement assembly`,
+    `${queryTitle} dismantled vehicle part`,
+    `${queryTitle} online marketplace listing`,
+  ];
+  const images = ["/assets/results/front-bumper-ebay.svg", "/assets/results/front-bumper-breaker.svg", "/assets/results/front-bumper-recycled.svg"];
+
+  return platformSequence.map((platform, index) => {
+    const variation = (seed + index * 47) % Math.max(1, maxPrice - minPrice);
+    const price = minPrice + variation;
+    const listingSlug = slugify(`${queryTitle}-${platform.slug}-${index + 1}`) || `listing-${index + 1}`;
+    const listingUrl = platform.id === "ebay"
+      ? `https://www.ebay.co.uk/itm/${100000000 + ((seed + index * 931) % 899999999)}`
+      : platform.websiteUrl
+        ? `${platform.websiteUrl.replace(/\/$/, "")}/parts/${listingSlug}`
+        : `https://example.com/${platform.slug}/${listingSlug}`;
+
+    return {
+      id: `res-${platform.id}-${listingSlug}`,
+      title: titleTemplates[index],
+      description: `Generated from your search for ${queryTitle}. Confirm part number, vehicle side, variant, condition, delivery cost, and return policy before buying.`,
+      imageUrl: images[index % images.length],
+      price: `£${price}`,
+      source: platform.name,
+      platformId: platform.id,
+      platformName: platform.name,
+      platformCategory: platform.category,
+      listingUrl,
+      originalDomain: platform.websiteUrl ? new URL(platform.websiteUrl).hostname.replace(/^www\./, "") : "local seller",
+      condition: conditions[index],
+      location: locations[(seed + index) % locations.length],
+      delivery: index % 4 !== 0,
+      confidenceLabel: confidence[index],
+    };
+  });
+}
+
+function runSearch(search) {
+  if (!requireAuth({ type: "runSearch", search }, location.pathname)) return;
+  const results = createSearchResults(search);
+  const payload = { id: `srch_${Date.now()}`, ...search, results };
+  sessionStorage.setItem("parthunt-current-search", JSON.stringify(payload));
+  saveSearch({
+    searchType: search.searchType,
+    rawQuery: search.rawQuery,
+    generatedSearchTerms: search.generatedSearchTerms || [search.rawQuery],
+    vehicle: search.vehicle || null,
+    selectedPart: search.selectedPart || null,
+    partNumber: search.partNumber || null,
+    resultsCount: results.length,
+  }).finally(() => {
+    location.href = "/search/results/demo-search/";
+  });
+}
+
+function initAuthPages() {
+  $("#googleSignIn")?.addEventListener("click", async () => {
+    await signInWithPopup(auth, provider);
+    location.href = "/";
+  });
+  $("#signInForm")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await signInWithEmailAndPassword(auth, $("#email").value.trim(), $("#password").value);
+    location.href = "/";
+  });
+  $("#signUpForm")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if ($("#password").value !== $("#confirmPassword").value) {
+      alert("Passwords do not match.");
+      return;
+    }
+    const credential = await createUserWithEmailAndPassword(auth, $("#email").value.trim(), $("#password").value);
+    await updateProfile(credential.user, { displayName: $("#fullName").value.trim() });
+    await setDoc(doc(db, "users", credential.user.uid), {
+      name: $("#fullName").value.trim(),
+      email: $("#email").value.trim(),
+      country: $("#country")?.value || "",
+      preferredMake: $("#preferredMake")?.value || "",
+      userType: $("#userType")?.value || "car_owner",
+      createdAt: serverTimestamp(),
+    }, { merge: true });
+    location.href = "/";
+  });
+  $("#forgotForm")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await sendPasswordResetEmail(auth, $("#email").value.trim());
+    $("#resetStatus").textContent = "Password reset email sent.";
+  });
+}
+
+function initPartSearch() {
+  $("#partSearchForm")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const vehicle = { make: $("#make").value.trim(), model: $("#model").value.trim(), year: $("#year").value.trim(), engineSize: $("#engineSize").value.trim(), fuelType: $("#fuelType").value, transmission: $("#transmission").value };
+    const partNumber = $("#partNumber").value.trim();
+    runSearch({
+      searchType: "part_number",
+      partNumber,
+      vehicle,
+      rawQuery: `"${partNumber}" ${vehicle.year} ${vehicle.make} ${vehicle.model} used car part`.trim(),
+      generatedSearchTerms: [`"${partNumber}"`, `"${partNumber}" used car part`, `${vehicle.year} ${vehicle.make} ${vehicle.model} ${partNumber}`.trim()],
+    });
+  });
+}
+
+function findOptionByTextOrValue(select, value) {
+  if (!select || !value) return "";
+  const normalised = String(value).toLowerCase();
+  return [...select.options].find((option) => option.value.toLowerCase() === normalised || option.text.toLowerCase() === normalised)?.value || "";
+}
+
+function vehicleYearRange(profile = {}) {
+  const currentYear = new Date().getFullYear();
+  return {
+    from: Math.max(2012, Number(profile.from) || 2012),
+    to: Math.min(currentYear, Number(profile.to) || currentYear),
+  };
+}
+
+function getVariantProfiles(makeValue, modelValue) {
+  if (!makeValue || !modelValue) return [];
+  return popularVehicleVariants[makeValue]?.[modelValue] || [
+    { name: "Standard", from: 2012 },
+    { name: "SE", from: 2012 },
+    { name: "Sport", from: 2012 },
+    { name: "Premium", from: 2012 },
+    { name: "Other / not sure", from: 2012 },
+  ];
+}
+
+function populateVehicleYears(profile = null, selectedYear = "") {
+  const yearSelect = $("#year");
+  if (!yearSelect) return;
+  if (!profile) {
+    yearSelect.innerHTML = `<option value="">Select variant first</option>`;
+    yearSelect.disabled = true;
+    return;
+  }
+
+  const { from, to } = vehicleYearRange(profile);
+  const years = [];
+  for (let year = to; year >= from; year -= 1) {
+    years.push(`<option value="${year}">${year}</option>`);
+  }
+  yearSelect.innerHTML = `<option value="">Select year</option>${years.join("")}`;
+  yearSelect.disabled = false;
+  if (selectedYear) {
+    const matchingValue = findOptionByTextOrValue(yearSelect, selectedYear);
+    if (matchingValue) yearSelect.value = matchingValue;
+  }
+}
+
+function populateVehicleVariants(makeValue, modelValue, selectedVariant = "", selectedYear = "") {
+  const variantSelect = $("#variant");
+  if (!variantSelect) return;
+  const profiles = getVariantProfiles(makeValue, modelValue);
+  variantSelect.innerHTML = profiles.length
+    ? `<option value="">Select variant</option>${profiles.map((profile) => `<option value="${profile.name}">${profile.name}</option>`).join("")}`
+    : `<option value="">Select model first</option>`;
+  variantSelect.disabled = !profiles.length;
+  populateVehicleYears(null);
+
+  const matchingVariant = selectedVariant ? findOptionByTextOrValue(variantSelect, selectedVariant) : "";
+  if (matchingVariant) {
+    variantSelect.value = matchingVariant;
+    populateVehicleYears(profiles.find((profile) => profile.name === matchingVariant), selectedYear);
+  }
+}
+
+function populateVehicleModels(makeValue, selectedModel = "") {
+  const modelSelect = $("#model");
+  if (!modelSelect) return;
+  const models = popularVehicleMakes[makeValue] || [];
+  modelSelect.innerHTML = models.length
+    ? `<option value="">Select model</option>${models.map((model) => `<option value="${model}">${model}</option>`).join("")}`
+    : `<option value="">Select make first</option>`;
+  modelSelect.disabled = !models.length;
+  populateVehicleVariants("", "");
+  if (selectedModel) {
+    const matchingValue = findOptionByTextOrValue(modelSelect, selectedModel);
+    if (matchingValue) {
+      modelSelect.value = matchingValue;
+      populateVehicleVariants(makeValue, matchingValue);
+    }
+  }
+}
+
+function initVehicleDropdowns() {
+  const makeSelect = $("#make");
+  const modelSelect = $("#model");
+  const variantSelect = $("#variant");
+  const yearSelect = $("#year");
+  if (!makeSelect || !yearSelect) return;
+
+  const makes = Object.keys(popularVehicleMakes).sort((a, b) => a.localeCompare(b));
+  makeSelect.innerHTML = `<option value="">Select make</option>${makes.map((make) => `<option value="${make}">${make}</option>`).join("")}`;
+  populateVehicleYears(null);
+
+  makeSelect.addEventListener("change", () => populateVehicleModels(makeSelect.value));
+  modelSelect?.addEventListener("change", () => populateVehicleVariants(makeSelect.value, modelSelect.value));
+  variantSelect?.addEventListener("change", () => {
+    const profile = getVariantProfiles(makeSelect.value, modelSelect.value).find((item) => item.name === variantSelect.value);
+    populateVehicleYears(profile || null);
+  });
+}
+
+function initVehicleSearch() {
+  initVehicleDropdowns();
+  $("#lookupRegistrationButton")?.addEventListener("click", lookupRegistration);
+  $("#vehicleSearchForm")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const vehicle = { make: $("#make").value, model: $("#model").value, variant: $("#variant").value, year: $("#year").value, wantedItem: $("#wantedItem").value.trim() };
+    sessionStorage.setItem("parthunt-vehicle", JSON.stringify(vehicle));
+    const searchBase = [vehicle.year, vehicle.make, vehicle.model, vehicle.variant, vehicle.wantedItem].filter(Boolean).join(" ");
+    runSearch({
+      searchType: "vehicle_part",
+      vehicle,
+      selectedPart: {
+        id: vehicle.wantedItem.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "searched-part",
+        name: vehicle.wantedItem,
+        category: "User search",
+        alternativeNames: [],
+      },
+      rawQuery: searchBase.trim(),
+      generatedSearchTerms: [
+        `${searchBase} used`.trim(),
+        `${searchBase} breaker`.trim(),
+        `${searchBase} scrap yard`.trim(),
+        `${vehicle.make} ${vehicle.model} ${vehicle.wantedItem} replacement part`.trim(),
+      ],
+    });
+  });
+}
+
+function normaliseRegistration(value) {
+  return value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+function fillVehicleFromLookup(vehicle) {
+  const makeSelect = $("#make");
+  const yearSelect = $("#year");
+  const makeValue = findOptionByTextOrValue(makeSelect, vehicle.make);
+  if (makeValue) {
+    makeSelect.value = makeValue;
+    populateVehicleModels(makeValue, vehicle.model);
+  }
+  if (vehicle.yearOfManufacture) {
+    const yearValue = findOptionByTextOrValue(yearSelect, vehicle.yearOfManufacture);
+    if (yearValue) yearSelect.value = yearValue;
+  }
+  sessionStorage.setItem("parthunt-registration-vehicle", JSON.stringify(vehicle));
+}
+
+async function lookupRegistration() {
+  const status = $("#registrationLookupStatus");
+  const registrationNumber = normaliseRegistration($("#registrationNumber").value);
+  if (!registrationNumber) {
+    status.textContent = "Enter a UK registration number first.";
+    return;
+  }
+  const isLocalStatic = ["127.0.0.1", "localhost"].includes(location.hostname);
+  if (isLocalStatic && registrationNumber === "AA19AAA") {
+    const demoVehicle = { registrationNumber, make: "FORD", model: "Focus", yearOfManufacture: 2019, fuelType: "Petrol", engineCapacity: 2000, colour: "Red", source: "demo" };
+    fillVehicleFromLookup(demoVehicle);
+    status.textContent = "Demo vehicle loaded. Deploy the Firebase Function and DVLA API key for live registration lookup.";
+    return;
+  }
+  status.textContent = "Looking up vehicle details...";
+  try {
+    const response = await fetch("/api/vehicle-lookup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ registrationNumber }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || "Vehicle lookup failed.");
+    fillVehicleFromLookup(data.vehicle);
+    status.textContent = `Found ${data.vehicle.yearOfManufacture || ""} ${data.vehicle.make || "vehicle"}${data.vehicle.model ? ` ${data.vehicle.model}` : ""}. Add the model if DVLA did not provide it, then view the car.`;
+  } catch (error) {
+    console.warn(error);
+    if (registrationNumber === "AA19AAA") {
+      const demoVehicle = { registrationNumber, make: "FORD", model: "Focus", yearOfManufacture: 2019, fuelType: "Petrol", engineCapacity: 2000, colour: "Red", source: "demo" };
+      fillVehicleFromLookup(demoVehicle);
+      status.textContent = "Demo vehicle loaded. Deploy the Firebase Function and DVLA API key for live registration lookup.";
+      return;
+    }
+    status.textContent = "Live DVLA lookup is not available yet. Add the Firebase Function secret DVLA_API_KEY and deploy functions, or try demo plate AA19AAA.";
+  }
+}
+
+function initVehicleModel() {
+  const vehicle = JSON.parse(sessionStorage.getItem("parthunt-vehicle") || '{"make":"Ford","model":"Focus","year":"2017","bodyType":"Hatchback"}');
+  $("#vehicleTitle") && ($("#vehicleTitle").textContent = `${vehicle.year} ${vehicle.make} ${vehicle.model} ${vehicle.bodyType || ""}`.trim());
+  const list = $("#partList");
+  const selected = $("#selectedPartPanel");
+  if (!list || !selected) return;
+  list.innerHTML = parts.map((part) => `<button class="button button-ghost" type="button" data-part="${part.id}">${part.name}</button>`).join("");
+  function select(partId) {
+    const part = parts.find((item) => item.id === partId) || parts[0];
+    selected.innerHTML = `<p class="eyebrow">Selected part</p><h3>${part.name}</h3><p>Alternative names: ${part.alternativeNames.join(", ")}</p><ul class="check-list">${part.compatibilityNotes.map((note) => `<li>${note}</li>`).join("")}</ul><button id="searchThisPart" class="button button-primary full-width" type="button">Search This Part</button>`;
+    $("#searchThisPart").addEventListener("click", () => runSearch({
+      searchType: "vehicle_part",
+      vehicle,
+      selectedPart: part,
+      rawQuery: `${vehicle.year} ${vehicle.make} ${vehicle.model} ${part.name} used`,
+      generatedSearchTerms: [`${vehicle.year} ${vehicle.make} ${vehicle.model} ${part.name} used`, `${vehicle.make} ${vehicle.model} ${part.name} breaker`, ...part.alternativeNames.map((name) => `${vehicle.year} ${vehicle.make} ${vehicle.model} ${name}`)],
+    }));
+  }
+  list.querySelectorAll("[data-part]").forEach((button) => button.addEventListener("click", () => select(button.dataset.part)));
+  select("front-bumper");
+}
+
+function initResults() {
+  const search = JSON.parse(sessionStorage.getItem("parthunt-current-search") || "null") || {
+    searchType: "vehicle_part",
+    rawQuery: "2017 Ford Focus front bumper used",
+    vehicle: { year: "2017", make: "Ford", model: "Focus", wantedItem: "front bumper" },
+    selectedPart: { name: "front bumper" },
+  };
+  if (!Array.isArray(search.results) || !search.results.length) {
+    search.results = createSearchResults(search);
+    sessionStorage.setItem("parthunt-current-search", JSON.stringify(search));
+  }
+  $("#resultsTitle") && ($("#resultsTitle").textContent = `Results for: ${search.rawQuery}`);
+  const grid = $("#resultsGrid");
+  if (!grid) return;
+
+  const renderResults = (results) => {
+    grid.innerHTML = results.length ? results.map((result) => {
+    const platform = demoPlatforms.find((item) => item.id === result.platformId);
+    const valid = isExactListingUrl(result.listingUrl, platform);
+    return `<article class="result-card">
+      <div class="result-image">
+        ${result.imageUrl ? `<img src="${result.imageUrl}" alt="${result.title}" loading="lazy" onerror="this.closest('.result-image').classList.add('image-missing'); this.remove();" />` : `<span>${result.source}</span>`}
+      </div>
+      <div class="result-body">
+        <div class="result-platform">${platformLogo(platform, true)}<strong>${result.platformName}</strong><span class="tag">${result.platformCategory}</span></div>
+        <div class="price">${result.price}</div>
+        <h3>${result.title}</h3>
+        <p class="muted">${result.description}</p>
+        <div class="result-meta"><span class="tag">${result.location}</span><span class="tag">${result.condition}</span><span class="tag">${result.delivery ? "Delivery" : "Collection"}</span><span class="tag confidence">${result.confidenceLabel}</span></div>
+        <div class="card-actions">
+          ${valid ? `<button class="button button-primary" type="button" data-listing="${result.listingUrl}">View Exact Listing</button>` : `<button class="button button-ghost" type="button" disabled>Listing unavailable</button>`}
+          <button class="button button-ghost" type="button" data-save="${result.id}">Save Part</button>
+          <button class="button button-secondary" type="button">Ask Agent</button>
+          <button class="button button-ghost" type="button">Compare</button>
+        </div>
+      </div>
+    </article>`;
+    }).join("") : `<div class="empty-state">No results match those filters.</div>`;
+
+    grid.querySelectorAll("[data-listing]").forEach((button) => button.addEventListener("click", () => {
+      const url = button.dataset.listing;
+      if (!requireAuth({ type: "openListing", url }, location.pathname)) return;
+      window.open(url, "_blank", "noopener,noreferrer");
+    }));
+    grid.querySelectorAll("[data-save]").forEach((button) => button.addEventListener("click", async () => {
+      if (!requireAuth({ type: "savePart", resultId: button.dataset.save }, location.pathname)) return;
+      const result = search.results.find((item) => item.id === button.dataset.save);
+      await setDoc(doc(db, "users", currentUser.uid, "savedParts", result.id), { ...result, savedAt: serverTimestamp() });
+      alert("Part saved.");
+    }));
+  };
+
+  const applyFilters = () => {
+    const condition = $("#conditionFilter")?.value || "";
+    const deliveryOnly = Boolean($("#deliveryFilter")?.checked);
+    const filtered = search.results.filter((result) => {
+      const conditionMatches = !condition || result.condition === condition;
+      const deliveryMatches = !deliveryOnly || Boolean(result.delivery);
+      return conditionMatches && deliveryMatches;
+    });
+    renderResults(filtered);
+  };
+
+  $("#conditionFilter")?.addEventListener("change", applyFilters);
+  $("#deliveryFilter")?.addEventListener("change", applyFilters);
+  applyFilters();
+}
+
+function initPlatformProfile() {
+  const slug = location.pathname.split("/").filter(Boolean).pop();
+  const platform = demoPlatforms.find((item) => item.slug === slug) || demoPlatforms[0];
+  const target = $("#platformProfileContent");
+  if (!target) return;
+  target.innerHTML = `<article class="platform-profile-card">
+    <div class="platform-image">${initials(platform.name)}</div>
+    <div class="platform-profile-header"><div>${platformLogo(platform)}<p class="eyebrow">Platform profile</p><h1>${platform.name}</h1><p class="muted">${platform.category}</p></div><div><div class="stars">${stars(platform.averageRating)}</div><strong>${platform.averageRating}/5 from ${platform.reviewCount} reviews</strong><p class="muted">${platform.successfulPurchaseCount} successful purchases</p></div></div>
+    <div class="result-meta"><span class="tag">Item ${platform.averageItemRating}/5</span><span class="tag">Delivery ${platform.averageDeliveryRating}/5</span><span class="tag">${platform.wouldBuyAgainPercentage}% would buy again</span></div>
+    <p>${platform.summary}</p><p class="muted">Common parts: ${platform.topPartCategories.join(", ")}</p>
+    ${platform.websiteUrl ? `<a class="button button-primary" href="${platform.websiteUrl}" target="_blank" rel="noopener noreferrer">Visit platform website</a>` : ""}
+    <h3>Rating breakdown</h3>
+    ${[5,4,3,2,1].map((rating, index) => `<div class="breakdown-row"><span>${rating} stars</span><div class="breakdown-bar"><span style="width:${[52,31,10,5,2][index]}%"></span></div><span>${[52,31,10,5,2][index]}%</span></div>`).join("")}
+    <h3>User reviews</h3>
+    <div class="review-list"><article class="review-card"><div class="stars">${stars(platform.averageRating)}</div><strong>Demo feedback</strong><p>${platform.summary}</p><p class="muted">Seed/demo data</p></article></div>
+  </article>`;
+}
+
+async function loadCollection(path, orderField) {
+  if (!currentUser) return [];
+  const q = query(collection(db, "users", currentUser.uid, path), orderBy(orderField, "desc"));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+}
+
+async function initProtectedPages() {
+  if (!["dashboard", "history", "saved-parts", "settings", "review-new"].includes(page)) return;
+  if (!currentUser) {
+    $(".protected-content") && ($(".protected-content").innerHTML = `<div class="empty-state">Sign in to access this page. <a class="button button-primary" href="/sign-in/">Sign In</a></div>`);
+    return;
+  }
+  if (page === "dashboard") {
+    const history = await loadCollection("searchHistory", "searchedAt").catch(() => []);
+    const saved = await loadCollection("savedParts", "savedAt").catch(() => []);
+    $("#dashboardContent").innerHTML = `<div class="dashboard-stats"><article><strong>${history.length}</strong><span>Searches</span></article><article><strong>${saved.length}</strong><span>Saved parts</span></article><article><strong>${history.filter((item) => item.purchaseStatus === "bought").length}</strong><span>Bought items</span></article><article><strong>3</strong><span>Review reminders</span></article></div>`;
+  }
+  if (page === "history") {
+    const history = await loadCollection("searchHistory", "searchedAt").catch(() => []);
+    $("#historyGrid").innerHTML = history.length ? history.map((item) => `<article class="history-card"><p class="eyebrow">${item.searchType}</p><h3>${item.rawQuery}</h3><div class="result-meta"><span class="tag">${item.resultsCount || 0} results</span><span class="tag">${item.purchaseStatus || "still_looking"}</span></div><div class="history-card-actions"><a class="button button-secondary" href="/search/results/demo-search/">View Results</a><a class="button button-primary" href="/reviews/new/demo-history/">Mark as Bought</a></div></article>`).join("") : `<div class="empty-state">No searches yet.</div>`;
+  }
+  if (page === "saved-parts") {
+    const saved = await loadCollection("savedParts", "savedAt").catch(() => []);
+    $("#savedGrid").innerHTML = saved.length ? saved.map((item) => `<article class="result-card"><div class="result-image">${item.platformName}</div><div class="result-body"><h3>${item.title}</h3><p class="price">${item.price}</p><a class="button button-primary" href="${item.listingUrl}" target="_blank" rel="noopener noreferrer">Exact listing link</a><button class="button button-ghost" data-remove="${item.id}">Remove</button></div></article>`).join("") : `<div class="empty-state">No saved parts yet.</div>`;
+    $("#savedGrid").querySelectorAll("[data-remove]").forEach((button) => button.addEventListener("click", async () => {
+      await deleteDoc(doc(db, "users", currentUser.uid, "savedParts", button.dataset.remove));
+      location.reload();
+    }));
+  }
+  if (page === "settings") {
+    $("#settingsEmail").textContent = currentUser.email || "";
+    $("#settingsUid").textContent = currentUser.uid;
+  }
+  if (page === "review-new") {
+    $("#reviewForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const itemRating = Number($("#itemRating").value);
+      const deliveryRating = $("#deliveryRating").value ? Number($("#deliveryRating").value) : null;
+      const overallRating = deliveryRating ? (itemRating + deliveryRating) / 2 : itemRating;
+      await addDoc(collection(db, "users", currentUser.uid, "platformReviews"), { platformName: $("#platformName").value, itemRating, deliveryRating, overallRating, reviewText: $("#reviewText").value, wouldBuyAgain: $("#wouldBuyAgain").checked, createdAt: serverTimestamp() });
+      location.href = "/history/";
+    });
+  }
+}
+
+function initPage() {
+  renderPlatformCards();
+  initPlatformDirectory();
+  initAuthPages();
+  initPartSearch();
+  initVehicleSearch();
+  initVehicleModel();
+  initResults();
+  initPlatformProfile();
+}
+
+renderShell();
+setTheme();
+wireShell();
+initPage();
+
+onAuthStateChanged(auth, async (user) => {
+  currentUser = user;
+  const firstName = user ? (user.displayName || user.email || "User").split(/[ @]/)[0] : "User";
+  $("#userStatus").textContent = firstName;
+  $("#navSignIn").classList.toggle("hidden", Boolean(user));
+  $("#navSignUp").classList.toggle("hidden", Boolean(user));
+  $("#accountMenu").classList.toggle("hidden", !user);
+  if (user && ["sign-in", "sign-up"].includes(page)) {
+    location.href = "/";
+  }
+  if (user) {
+    try {
+      await setDoc(doc(db, "users", user.uid), { email: user.email || "", name: user.displayName || "", updatedAt: serverTimestamp() }, { merge: true });
+    } catch (error) {
+      console.warn("User profile could not be synced. Deploy the latest Firestore rules.", error);
+    }
+    const pending = JSON.parse(sessionStorage.getItem("parthunt-pending-action") || "null");
+    sessionStorage.removeItem("parthunt-pending-action");
+    if (pending?.type === "openListing") window.open(pending.url, "_blank", "noopener,noreferrer");
+    if (pending?.type === "runSearch") runSearch(pending.search);
+  }
+  await initProtectedPages();
+});

@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>New Review · PartHunt AI</title><link rel="icon" href="/favicon.svg" type="image/svg+xml" /><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" /><link rel="stylesheet" href="/styles.css" /><link rel="stylesheet" href="/multipage.css" /></head>
+  <body data-page="review-new">
+    <div id="siteNav"></div>
+    <main class="section protected-content">
+      <div class="section-heading"><p class="eyebrow">Review purchase</p><h1>Tell others where you bought the part.</h1></div>
+      <form id="reviewForm" class="form-panel form-grid compact">
+        <label><span>Did you buy the item?</span><select><option>Yes</option><option>No</option></select></label>
+        <label><span>Platform bought from</span><input id="platformName" value="eBay" /></label>
+        <label><span>Listing URL</span><input type="url" placeholder="https://www.ebay.co.uk/itm/123456789" /></label>
+        <label><span>Price paid</span><input type="number" placeholder="86" /></label>
+        <label><span>Item condition</span><select><option>Used</option><option>New</option><option>Refurbished</option><option>Scrap</option></select></label>
+        <label><span>Item rating</span><select id="itemRating"><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option></select></label>
+        <label><span>Delivery rating</span><select id="deliveryRating"><option value="">No delivery</option><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option></select></label>
+        <label class="checkbox-row"><input id="wouldBuyAgain" type="checkbox" checked /><span>Would buy again</span></label>
+        <label class="full-span"><span>Written review</span><textarea id="reviewText" rows="4" placeholder="Good condition. Arrived earlier than expected."></textarea></label>
+        <button class="button button-primary" type="submit">Submit Review</button>
+      </form>
+    </main>
+    <div id="siteFooter"></div><div id="loginPrompt"></div><script type="module" src="/site.js"></script>
+  </body>
+</html>
