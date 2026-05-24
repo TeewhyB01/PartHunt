@@ -1,0 +1,53 @@
+{
+  "name": "parthunt-desktop",
+  "version": "0.1.0",
+  "description": "PartHunt AI desktop app",
+  "main": "electron/main.js",
+  "private": true,
+  "author": "PartHunt AI",
+  "license": "UNLICENSED",
+  "scripts": {
+    "start": "electron .",
+    "build:mac": "electron-builder --mac",
+    "build:win": "electron-builder --win",
+    "build:linux": "electron-builder --linux",
+    "check": "node --check electron/main.js && node --check electron/preload.js"
+  },
+  "dependencies": {
+    "electron-is-dev": "^3.0.1"
+  },
+  "devDependencies": {
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.parthunt.desktop",
+    "productName": "PartHunt AI",
+    "files": [
+      "electron/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "buildResources": "assets",
+      "output": "release"
+    },
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        "dmg"
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Utility"
+    }
+  }
+}

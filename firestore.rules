@@ -9,6 +9,11 @@ service cloud.firestore {
       allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
     }
 
+    match /platforms/{platformId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }

@@ -1,0 +1,31 @@
+{
+  "productName": "PartHunt AI",
+  "webUrl": "https://parthunt.vercel.app",
+  "firebase": {
+    "apiKey": "AIzaSyBtV479SVRsY_jYZLtlBjl-MOvGZ32U6yE",
+    "authDomain": "parthunt.firebaseapp.com",
+    "projectId": "parthunt",
+    "storageBucket": "parthunt.firebasestorage.app",
+    "messagingSenderId": "1089089473351",
+    "appId": "1:1089089473351:web:f136191bbbd131abdf5a62",
+    "measurementId": "G-W107HW9C4K"
+  },
+  "collections": {
+    "users": "users",
+    "searchHistory": "searchHistory",
+    "savedParts": "savedParts",
+    "platformReviews": "platformReviews",
+    "publicPlatformReviews": "platformReviews",
+    "platforms": "platforms"
+  },
+  "auth": {
+    "providers": [
+      "emailPassword",
+      "google"
+    ],
+    "firebaseAuthorizedDomains": [
+      "parthunt.vercel.app",
+      "localhost"
+    ]
+  }
+}

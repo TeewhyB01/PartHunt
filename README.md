@@ -4,6 +4,9 @@ PartHunt AI is a Firebase-backed web app for finding used, scrap, recycled, and 
 
 ## What is included
 
+- Web app deployed at `https://parthunt.vercel.app`.
+- Electron desktop app scaffold under `desktop/`.
+- Native SwiftUI iOS app scaffold under `ios/PartHunt/`.
 - Google sign-in with Firebase Authentication.
 - Email/password sign-up, sign-in, and password reset with Firebase Authentication.
 - Firestore saved parts and saved search metadata under `users/{uid}`.
@@ -94,6 +97,50 @@ Official references:
 - `/settings/`
 
 The app uses Firebase Auth, Firestore, and static routing because this workspace does not currently include npm/pnpm/yarn for a Next.js build. The route structure and shared modules are organized so it can be migrated to Next.js App Router later.
+
+## Desktop app
+
+The Electron app lives in:
+
+```text
+desktop/
+```
+
+Run it with:
+
+```sh
+cd desktop
+pnpm install
+pnpm start
+```
+
+Build installers with:
+
+```sh
+pnpm build:mac
+pnpm build:win
+pnpm build:linux
+```
+
+The first desktop version wraps the production web app, so it uses the same Firebase Auth, Firestore, Storage, and Functions backend.
+
+## iOS app
+
+The SwiftUI app lives in:
+
+```text
+ios/PartHunt/
+```
+
+Before building:
+
+1. Add an iOS app in Firebase with bundle ID `com.parthunt.app`.
+2. Download `GoogleService-Info.plist`.
+3. Put it in `ios/PartHunt/PartHunt/Resources/`.
+4. Open `ios/PartHunt/PartHunt.xcodeproj`.
+5. Let Xcode resolve Firebase Swift Package dependencies.
+
+The iOS app includes native auth, vehicle search, generated results, saved parts, history, platform cards, and settings screens.
 
 ## Future API integration
 
