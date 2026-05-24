@@ -1,6 +1,6 @@
-# PartHunt AI
+# PartHun
 
-PartHunt AI is a Firebase-backed web app for finding used, scrap, recycled, and replacement car parts.
+PartHunt is a Firebase-backed web app for finding used, scrap, recycled, and replacement car parts.
 
 ## What is included
 
@@ -54,7 +54,6 @@ The included `firebase.json`, `firestore.rules`, and `storage.rules` are ready f
 
 The official UK route for registration lookup is the DVLA Vehicle Enquiry Service API. It accepts a vehicle registration number and can return vehicle details such as make, year of manufacture, fuel type, engine capacity, colour, MOT status and tax status.
 
-You need a DVLA-issued API key. Do not put that key in frontend JavaScript.
 
 This project includes a Firebase Function proxy at:
 
@@ -76,25 +75,6 @@ Official references:
 - DVLA Vehicle Enquiry Service API: https://developer-portal.driver-vehicle-licensing.api.gov.uk/apis/vehicle-enquiry-service/vehicle-enquiry-service-description.html
 - DVSA MOT history API: https://documentation.history.mot.api.gov.uk/
 
-## Multi-page routes
-
-- `/`
-- `/sign-in/`
-- `/sign-up/`
-- `/forgot-password/`
-- `/search/part-number/`
-- `/search/vehicle/`
-- `/vehicle/ford/focus/2017/`
-- `/search/results/demo-search/`
-- `/platforms/`
-- `/platforms/ebay/`
-- `/platforms/breakerlink/`
-- `/platforms/parts-gateway/`
-- `/dashboard/`
-- `/history/`
-- `/saved-parts/`
-- `/reviews/new/demo-history/`
-- `/settings/`
 
 The app uses Firebase Auth, Firestore, and static routing because this workspace does not currently include npm/pnpm/yarn for a Next.js build. The route structure and shared modules are organized so it can be migrated to Next.js App Router later.
 
