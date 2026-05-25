@@ -113,6 +113,145 @@ function confidenceLabel(result = {}, input = {}) {
   return "Check carefully";
 }
 
+function getWantedPartName(input = {}) {
+  const vehicle = input.vehicle || {};
+  return cleanText(input.selectedPart?.name || vehicle.wantedItem || input.rawQuery || input.partNumber || "car part");
+}
+
+function formatMoney(price = {}) {
+  if (!price || !price.value) return "";
+  const currency = price.currency || "GBP";
+  const symbol = currency === "GBP" ? "£" : `${currency} `;
+  return `${symbol}${price.value}`;
+}
+
+function normalizeEbayImage(url = "") {
+  return String(url || "").replace(/s-l\d+\.jpg/i, "s-l500.jpg");
+}
+
+function mapEbayResult(item = {}, input = {}, index = 0) {
+  const title = cleanText(item.title || "eBay vehicle part listing");
+  const locationParts = [item.itemLocation?.city, item.itemLocation?.postalCode, item.itemLocation?.country].map(cleanText).filter(Boolean);
+  const shippingOption = Array.isArray(item.shippingOptions) ? item.shippingOptions[0] : null;
+  const shippingCost = shippingOption?.shippingCost ? formatMoney(shippingOption.shippingCost) : "";
+  const deliveryOption = shippingOption?.shippingCostType === "FIXED" && shippingCost ? `Delivery ${shippingCost}` : "Check delivery";
+  const itemWebUrl = item.itemWebUrl || "";
+  return {
+    id: `ebay-${item.itemId || index + 1}`,
+    title,
+    description: cleanText(item.shortDescription || item.subtitle || `eBay listing for ${getWantedPartName(input)}. Check fitment, part number, side, condition, postage, and returns before buying.`),
+    imageUrl: normalizeEbayImage(item.image?.imageUrl || item.thumbnailImages?.[0]?.imageUrl || item.additionalImages?.[0]?.imageUrl || ""),
+    price: formatMoney(item.price) || "Check listing",
+    source: "eBay",
+    platformId: "ebay",
+    platformName: "eBay",
+    platformLogoUrl: "/assets/platforms/ebay.svg",
+    platformCategory: "Online marketplace",
+    listingUrl: itemWebUrl,
+    originalDomain: "ebay.co.uk",
+    condition: cleanText(item.condition || "Check listing"),
+    location: locationParts.join(", ") || "Check listing",
+    delivery: Boolean(shippingOption),
+    deliveryOption,
+    confidenceLabel: confidenceLabel({ title, snippet: item.shortDescription || "" }, input),
+    seller: item.seller?.username || "",
+  };
+}
+
+let ebayTokenCache = {
+  accessToken: "",
+  expiresAt: 0,
+  key: "",
+};
+
+async function getEbayApplicationToken(clientId = "", clientSecret = "") {
+  if (!clientId || !clientSecret) return "";
+  const cacheKey = `${clientId}:${clientSecret.slice(0, 8)}`;
+  const now = Date.now();
+  if (ebayTokenCache.accessToken && ebayTokenCache.expiresAt > now + 60000 && ebayTokenCache.key === cacheKey) {
+    return ebayTokenCache.accessToken;
+  }
+
+  const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
+  const response = await fetch("https://api.ebay.com/identity/v1/oauth2/token", {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${credentials}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({
+      grant_type: "client_credentials",
+      scope: "https://api.ebay.com/oauth/api_scope",
+    }).toString(),
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok || !body.access_token) {
+    const error = new Error(body.error_description || body.error || "eBay authentication failed.");
+    error.statusCode = response.status || 502;
+    throw error;
+  }
+
+  ebayTokenCache = {
+    accessToken: body.access_token,
+    expiresAt: now + Math.max(300, Number(body.expires_in) || 7200) * 1000,
+    key: cacheKey,
+  };
+  return ebayTokenCache.accessToken;
+}
+
+async function searchPartsWithEbay(input = {}, clientId = "", clientSecret = "") {
+  if (!clientId || !clientSecret) {
+    const error = new Error("EBAY_CLIENT_ID and EBAY_CLIENT_SECRET are not configured.");
+    error.statusCode = 500;
+    throw error;
+  }
+
+  const page = Math.max(1, Number(input.page) || 1);
+  const limit = Math.max(1, Math.min(30, Number(input.limit) || 10));
+  const query = buildSearchQuery(input);
+  if (!query) {
+    const error = new Error("Enter a part number, vehicle details, or part name before searching.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const token = await getEbayApplicationToken(clientId, clientSecret);
+  const offset = (page - 1) * limit;
+  const params = new URLSearchParams({
+    q: query,
+    limit: String(limit),
+    offset: String(offset),
+  });
+  const response = await fetch(`https://api.ebay.com/buy/browse/v1/item_summary/search?${params.toString()}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "X-EBAY-C-MARKETPLACE-ID": "EBAY_GB",
+      "X-EBAY-C-ENDUSERCTX": "contextualLocation=country=GB",
+    },
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const apiError = Array.isArray(body.errors) && body.errors[0] ? body.errors[0] : {};
+    const error = new Error(apiError.message || body.error_description || "eBay Browse API search failed.");
+    error.statusCode = response.status || 502;
+    throw error;
+  }
+
+  const items = Array.isArray(body.itemSummaries) ? body.itemSummaries : [];
+  const mapped = items.map((item, index) => mapEbayResult(item, input, offset + index));
+  const totalResults = Math.min(Number(body.total) || mapped.length, 10000);
+  return {
+    results: mapped,
+    allResults: mapped,
+    totalResults,
+    currentPage: page,
+    totalPages: Math.max(1, Math.ceil(totalResults / limit)),
+    hasNextPage: offset + limit < totalResults,
+    query,
+    provider: "ebay",
+  };
+}
+
 function mapSerpResult(result = {}, input = {}, index = 0) {
   const listingUrl = result.link || "";
   const platform = platformFromUrl(listingUrl);
@@ -261,7 +400,67 @@ async function searchPartsWithSerpApi(input = {}, apiKey = "") {
   };
 }
 
+function dedupeResults(results = []) {
+  const seen = new Set();
+  return results.filter((result) => {
+    const key = cleanText(result.listingUrl || result.title).toLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+async function searchPartsLive(input = {}, config = {}) {
+  const page = Math.max(1, Number(input.page) || 1);
+  const limit = Math.max(1, Math.min(30, Number(input.limit) || 10));
+  const errors = [];
+  const searches = [];
+
+  if (config.ebayClientId && config.ebayClientSecret) {
+    searches.push(
+      searchPartsWithEbay(input, config.ebayClientId, config.ebayClientSecret).catch((error) => {
+        errors.push(`eBay: ${error.message}`);
+        return null;
+      }),
+    );
+  }
+
+  if (config.serpApiKey) {
+    searches.push(
+      searchPartsWithSerpApi({ ...input, page: 1, limit: Math.min(30, Math.max(limit, page * limit)) }, config.serpApiKey).catch((error) => {
+        errors.push(`SerpAPI: ${error.message}`);
+        return null;
+      }),
+    );
+  }
+
+  if (!searches.length) {
+    const error = new Error("No search provider is configured.");
+    error.statusCode = 500;
+    throw error;
+  }
+
+  const settled = (await Promise.all(searches)).filter(Boolean);
+  if (!settled.length) {
+    const error = new Error(errors[0] || "Search failed.");
+    error.statusCode = 502;
+    throw error;
+  }
+
+  const merged = dedupeResults(settled.flatMap((result) => result.allResults || result.results || []));
+  const pagination = paginated(merged, page, limit);
+  return {
+    ...pagination,
+    allResults: merged,
+    query: settled[0].query || buildSearchQuery(input),
+    provider: settled.map((result) => result.provider).join("+"),
+    providerWarnings: errors,
+  };
+}
+
 module.exports = {
   buildSearchQuery,
+  searchPartsLive,
+  searchPartsWithEbay,
   searchPartsWithSerpApi,
 };
