@@ -113,6 +113,39 @@ function confidenceLabel(result = {}, input = {}) {
   return "Check carefully";
 }
 
+function tokenise(value = "") {
+  return cleanText(value)
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((word) => word.length > 1);
+}
+
+function resultMatchScore(result = {}, input = {}) {
+  const vehicle = input.vehicle || {};
+  const partName = cleanText(input.selectedPart?.name || vehicle.wantedItem || input.rawQuery || "");
+  const haystack = `${result.title || ""} ${result.description || ""} ${result.platformName || ""}`.toLowerCase();
+  let score = 0;
+
+  if (input.partNumber && haystack.includes(String(input.partNumber).toLowerCase())) score += 50;
+  if (vehicle.make && haystack.includes(String(vehicle.make).toLowerCase())) score += 12;
+  if (vehicle.model && haystack.includes(String(vehicle.model).toLowerCase())) score += 12;
+  if (vehicle.year && haystack.includes(String(vehicle.year))) score += 8;
+  if (partName && haystack.includes(partName.toLowerCase())) score += 24;
+
+  const partWords = tokenise(partName);
+  partWords.forEach((word) => {
+    if (haystack.includes(word)) score += 4;
+  });
+
+  if (result.imageUrl) score += 6;
+  if (result.price && result.price !== "Check listing") score += 5;
+  if (result.confidenceLabel === "High match") score += 14;
+  if (result.confidenceLabel === "Possible match") score += 6;
+  if (result.listingUrl && /^https?:\/\//i.test(result.listingUrl)) score += 4;
+
+  return score;
+}
+
 function getWantedPartName(input = {}) {
   const vehicle = input.vehicle || {};
   return cleanText(input.selectedPart?.name || vehicle.wantedItem || input.rawQuery || input.partNumber || "car part");
@@ -410,6 +443,40 @@ function dedupeResults(results = []) {
   });
 }
 
+function rankAndMixResults(results = [], input = {}) {
+  const ranked = dedupeResults(results)
+    .map((result, index) => ({
+      ...result,
+      _rankScore: resultMatchScore(result, input),
+      _sourceIndex: index,
+    }))
+    .sort((a, b) => b._rankScore - a._rankScore || a._sourceIndex - b._sourceIndex);
+
+  const queues = new Map();
+  ranked.forEach((result) => {
+    const key = cleanText(result.platformId || result.platformName || result.source || "unknown").toLowerCase();
+    if (!queues.has(key)) queues.set(key, []);
+    queues.get(key).push(result);
+  });
+
+  const mixed = [];
+  let lastPlatform = "";
+  while (mixed.length < ranked.length) {
+    const candidates = Array.from(queues.entries())
+      .filter(([, queue]) => queue.length)
+      .map(([platform, queue]) => ({ platform, next: queue[0] }))
+      .sort((a, b) => b.next._rankScore - a.next._rankScore || a.next._sourceIndex - b.next._sourceIndex);
+
+    if (!candidates.length) break;
+    const selected = candidates.find((candidate) => candidate.platform !== lastPlatform) || candidates[0];
+    const [next] = queues.get(selected.platform).splice(0, 1);
+    mixed.push(next);
+    lastPlatform = selected.platform;
+  }
+
+  return mixed.map(({ _rankScore, _sourceIndex, ...result }) => result);
+}
+
 async function searchPartsLive(input = {}, config = {}) {
   const page = Math.max(1, Number(input.page) || 1);
   const limit = Math.max(1, Math.min(30, Number(input.limit) || 10));
@@ -447,7 +514,7 @@ async function searchPartsLive(input = {}, config = {}) {
     throw error;
   }
 
-  const merged = dedupeResults(settled.flatMap((result) => result.allResults || result.results || []));
+  const merged = rankAndMixResults(settled.flatMap((result) => result.allResults || result.results || []), input);
   const pagination = paginated(merged, page, limit);
   return {
     ...pagination,
