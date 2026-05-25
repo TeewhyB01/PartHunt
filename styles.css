@@ -665,7 +665,7 @@ h4 {
 }
 
 .history-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   margin-top: 1rem;
 }
 
@@ -674,6 +674,104 @@ h4 {
   gap: 0.8rem;
   padding: 1rem;
   background: rgba(255, 255, 255, 0.84);
+}
+
+.history-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+  margin-top: 1.2rem;
+}
+
+.history-summary article {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(238, 248, 255, 0.82)),
+    #fff;
+  box-shadow: 0 14px 35px rgba(38, 70, 102, 0.08);
+}
+
+.history-summary strong {
+  display: block;
+  color: #111827;
+  font-size: 2rem;
+}
+
+.history-summary span {
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 780;
+}
+
+.history-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.32fr);
+  gap: 0.85rem;
+  margin-top: 1rem;
+}
+
+.history-list-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(248, 251, 255, 0.88)),
+    #fff;
+  box-shadow: 0 16px 42px rgba(38, 70, 102, 0.09);
+}
+
+.history-list-card h3 {
+  margin: 0.1rem 0 0.2rem;
+  font-size: 1.2rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.history-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.history-detail-grid span {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.65rem;
+  background: rgba(248, 251, 255, 0.76);
+}
+
+.history-detail-grid strong,
+.history-detail-grid small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-detail-grid strong {
+  color: #111827;
+  font-size: 0.92rem;
+}
+
+.history-detail-grid small {
+  margin-top: 0.15rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.history-status-control {
+  display: grid;
+  grid-template-columns: auto minmax(220px, 0.35fr);
+  gap: 0.8rem;
+  align-items: center;
+}
+
+.history-status-control span {
+  margin: 0;
 }
 
 .history-card-header,
@@ -1557,6 +1655,16 @@ h4 {
     grid-template-columns: 1fr;
   }
 
+  .history-summary,
+  .history-detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .history-toolbar,
+  .history-status-control {
+    grid-template-columns: 1fr;
+  }
+
   .filters {
     position: static;
   }
@@ -1571,6 +1679,8 @@ h4 {
   .feature-band,
   .results-grid,
   .platform-grid,
+  .history-summary,
+  .history-detail-grid,
   .dashboard-stats,
   .metrics-grid {
     grid-template-columns: 1fr;

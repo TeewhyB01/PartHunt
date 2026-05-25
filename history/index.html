@@ -4,7 +4,36 @@
   <body data-page="history">
     <div id="siteNav"></div>
     <main class="section protected-content">
-      <div class="results-header"><div><p class="eyebrow">Search history</p><h1>Previous searches, like order history.</h1></div><a class="button button-secondary" href="/search/vehicle/">Search Again</a></div>
+      <div class="results-header">
+        <div>
+          <p class="eyebrow">Search history</p>
+          <h1>Saved searches from every part hunt.</h1>
+          <p class="muted">Reopen results, track purchase status, and come back to searches without starting again.</p>
+        </div>
+        <a class="button button-secondary" href="/search/vehicle/">Search Again</a>
+      </div>
+      <section class="history-summary" aria-label="Search history summary">
+        <article><strong id="historyTotal">0</strong><span>Total searches</span></article>
+        <article><strong id="historyLooking">0</strong><span>Still looking</span></article>
+        <article><strong id="historyBought">0</strong><span>Bought items</span></article>
+      </section>
+      <section class="history-toolbar" aria-label="Search history filters">
+        <label>
+          <span>Search history</span>
+          <input id="historySearch" type="search" placeholder="Filter by part, vehicle, platform, or part number" />
+        </label>
+        <label>
+          <span>Status</span>
+          <select id="historyStatusFilter">
+            <option value="">All statuses</option>
+            <option value="still_looking">Still looking</option>
+            <option value="found_not_bought">Found but not bought</option>
+            <option value="bought">Bought</option>
+            <option value="could_not_find">Could not find item</option>
+            <option value="no_longer_needed">No longer needed</option>
+          </select>
+        </label>
+      </section>
       <div id="historyGrid" class="history-grid"></div>
     </main>
     <div id="siteFooter"></div><div id="loginPrompt"></div><button id="chatToggle" class="chat-toggle" type="button">Ask</button><section id="chatbox" class="chatbox hidden"></section><script type="module" src="/site.js"></script>

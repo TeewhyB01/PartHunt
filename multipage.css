@@ -761,6 +761,23 @@ body[data-page="search-results"] .page-hero.compact {
     #101827;
 }
 
+[data-theme="dark"] .history-summary article,
+[data-theme="dark"] .history-list-card {
+  background:
+    linear-gradient(180deg, rgba(16, 24, 39, 0.97), rgba(18, 28, 46, 0.94)),
+    #101827;
+}
+
+[data-theme="dark"] .history-summary strong,
+[data-theme="dark"] .history-detail-grid strong,
+[data-theme="dark"] .history-list-card h3 {
+  color: #f9fafb;
+}
+
+[data-theme="dark"] .history-detail-grid span {
+  background: rgba(18, 28, 46, 0.92);
+}
+
 [data-theme="dark"] .result-card h3,
 [data-theme="dark"] .compare-card h3,
 [data-theme="dark"] .compare-card dd,

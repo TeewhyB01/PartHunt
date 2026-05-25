@@ -21,6 +21,7 @@ import {
   query,
   serverTimestamp,
   setDoc,
+  updateDoc,
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 import { demoPlatforms, demoResults, firebaseConfig, parts, popularVehicleMakes, popularVehicleVariants } from "/site-data.js";
 
@@ -237,6 +238,73 @@ function escapeHtml(value = "") {
     .replace(/'/g, "&#039;");
 }
 
+function firestoreDate(value) {
+  const date = value?.toDate ? value.toDate() : value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) return "Just now";
+  return new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(date);
+}
+
+function searchTypeLabel(value = "") {
+  const labels = {
+    part_number: "Part number",
+    vehicle_part: "Vehicle details",
+    chat_assisted: "Chat assisted",
+    vehicle: "Vehicle details",
+  };
+  return labels[value] || "Search";
+}
+
+function purchaseStatusLabel(value = "") {
+  const labels = {
+    still_looking: "Still looking",
+    found_not_bought: "Found but not bought",
+    bought: "Bought",
+    could_not_find: "Could not find item",
+    no_longer_needed: "No longer needed",
+  };
+  return labels[value] || "Still looking";
+}
+
+function vehicleSummary(vehicle = {}) {
+  return [vehicle.year, vehicle.make, vehicle.model, vehicle.variant || vehicle.trim].map((item) => String(item || "").trim()).filter(Boolean).join(" ") || "No vehicle saved";
+}
+
+function partSummary(item = {}) {
+  return item.selectedPart?.name || item.vehicle?.wantedItem || item.partNumber || item.rawQuery || "Car part search";
+}
+
+function serialisableResults(results = []) {
+  return results.slice(0, 30).map((result) => ({
+    id: result.id || `result-${hashString(result.listingUrl || result.title)}`,
+    title: result.title || "",
+    description: result.description || "",
+    imageUrl: result.imageUrl || "",
+    price: result.price || "",
+    source: result.source || result.platformName || "",
+    platformId: result.platformId || "",
+    platformName: result.platformName || result.source || "Listing",
+    platformLogoUrl: result.platformLogoUrl || "",
+    platformCategory: result.platformCategory || "External listing",
+    listingUrl: result.listingUrl || "",
+    originalDomain: result.originalDomain || "",
+    condition: result.condition || "",
+    location: result.location || "",
+    delivery: Boolean(result.delivery),
+    deliveryOption: result.deliveryOption || "",
+    confidenceLabel: result.confidenceLabel || "Check carefully",
+  }));
+}
+
+function withoutUndefined(value) {
+  if (Array.isArray(value)) return value.map(withoutUndefined);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value)
+      .filter(([, entryValue]) => entryValue !== undefined)
+      .map(([key, entryValue]) => [key, withoutUndefined(entryValue)]));
+  }
+  return value;
+}
+
 function platformLogo(platform = {}, small = false) {
   const name = platform.name || platform.platformName || "Platform";
   const logoUrl = platform.logoUrl || platform.platformLogoUrl || "";
@@ -345,13 +413,16 @@ function initPlatformDirectory() {
 
 async function saveSearch(search) {
   if (!currentUser) return null;
-  const ref = await addDoc(collection(db, "users", currentUser.uid, "searchHistory"), {
+  const results = serialisableResults(search.results || []);
+  const ref = await addDoc(collection(db, "users", currentUser.uid, "searchHistory"), withoutUndefined({
     ...search,
+    results,
+    savedResultIds: results.map((result) => result.id),
     userId: currentUser.uid,
     purchaseStatus: "still_looking",
     searchedAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
-  });
+  }));
   return ref.id;
 }
 
@@ -967,18 +1038,44 @@ function initResults() {
 
   $("#conditionFilter")?.addEventListener("change", applyFilters);
   $("#deliveryFilter")?.addEventListener("change", applyFilters);
+  if (search.savedHistoryId && $("#saveSearchButton")) {
+    $("#saveSearchButton").textContent = "Saved";
+    $("#saveSearchButton").disabled = true;
+    $("#saveSearchStatus") && ($("#saveSearchStatus").textContent = "This search is saved to your history.");
+  }
   $("#saveSearchButton")?.addEventListener("click", async () => {
     if (!requireAuth({ type: "saveSearch", search }, location.pathname)) return;
-    await saveSearch({
-      searchType: search.searchType,
-      rawQuery: search.rawQuery,
-      generatedSearchTerms: search.generatedSearchTerms || [search.rawQuery],
-      vehicle: search.vehicle || null,
-      selectedPart: search.selectedPart || null,
-      partNumber: search.partNumber || null,
-      resultsCount: search.results.length,
-    });
-    $("#saveSearchStatus").textContent = "Search saved to your history.";
+    const button = $("#saveSearchButton");
+    const status = $("#saveSearchStatus");
+    if (search.savedHistoryId) {
+      status.textContent = "This search is already saved to your history.";
+      return;
+    }
+    button.disabled = true;
+    button.textContent = "Saving...";
+    status.textContent = "";
+    try {
+      const savedId = await saveSearch({
+        searchType: search.searchType,
+        rawQuery: search.rawQuery,
+        generatedSearchTerms: search.generatedSearchTerms || [search.rawQuery],
+        vehicle: search.vehicle || null,
+        selectedPart: search.selectedPart || null,
+        partNumber: search.partNumber || null,
+        resultsCount: search.results.length,
+        provider: search.provider || "",
+        results: search.results,
+      });
+      search.savedHistoryId = savedId;
+      sessionStorage.setItem("parthunt-current-search", JSON.stringify(search));
+      status.textContent = "Search saved to your history.";
+      button.textContent = "Saved";
+    } catch (error) {
+      console.error(error);
+      status.textContent = "Could not save this search. Check your connection and Firestore rules.";
+      button.disabled = false;
+      button.textContent = "Save Search";
+    }
   });
   applyFilters();
   renderCompareTray(search);
@@ -1009,6 +1106,123 @@ async function loadCollection(path, orderField) {
   return snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
 }
 
+function historyPayload(item = {}) {
+  const fallbackResults = createSearchResults({
+    vehicle: item.vehicle || {},
+    selectedPart: item.selectedPart || null,
+    partNumber: item.partNumber || "",
+    rawQuery: item.rawQuery || "",
+  });
+  return {
+    id: item.id || `srch_${Date.now()}`,
+    searchType: item.searchType || "vehicle_part",
+    rawQuery: item.rawQuery || partSummary(item),
+    generatedSearchTerms: item.generatedSearchTerms || [item.rawQuery].filter(Boolean),
+    vehicle: item.vehicle || null,
+    selectedPart: item.selectedPart || null,
+    partNumber: item.partNumber || null,
+    results: Array.isArray(item.results) && item.results.length ? item.results : fallbackResults,
+    totalResults: item.resultsCount || item.results?.length || fallbackResults.length,
+    provider: item.provider || "history",
+    savedHistoryId: item.id,
+  };
+}
+
+function renderHistoryList(history = []) {
+  const grid = $("#historyGrid");
+  if (!grid) return;
+  const queryText = ($("#historySearch")?.value || "").toLowerCase().trim();
+  const statusFilter = $("#historyStatusFilter")?.value || "";
+  const filtered = history.filter((item) => {
+    const text = `${item.rawQuery || ""} ${partSummary(item)} ${vehicleSummary(item.vehicle || {})} ${item.partNumber || ""}`.toLowerCase();
+    const statusMatches = !statusFilter || (item.purchaseStatus || "still_looking") === statusFilter;
+    return statusMatches && (!queryText || text.includes(queryText));
+  });
+
+  $("#historyTotal") && ($("#historyTotal").textContent = String(history.length));
+  $("#historyBought") && ($("#historyBought").textContent = String(history.filter((item) => item.purchaseStatus === "bought").length));
+  $("#historyLooking") && ($("#historyLooking").textContent = String(history.filter((item) => (item.purchaseStatus || "still_looking") === "still_looking").length));
+
+  if (!history.length) {
+    grid.innerHTML = `<div class="empty-state">No searches saved yet. Run a search, then use Save Search on the results page.</div>`;
+    return;
+  }
+  if (!filtered.length) {
+    grid.innerHTML = `<div class="empty-state">No saved searches match those filters.</div>`;
+    return;
+  }
+
+  grid.innerHTML = filtered.map((item) => {
+    const status = item.purchaseStatus || "still_looking";
+    return `<article class="history-card history-list-card">
+      <div class="history-card-header">
+        <div>
+          <p class="eyebrow">${escapeHtml(searchTypeLabel(item.searchType))}</p>
+          <h3>${escapeHtml(item.rawQuery || partSummary(item))}</h3>
+          <p class="muted">${escapeHtml(vehicleSummary(item.vehicle || {}))}</p>
+        </div>
+        <span class="status-badge">${escapeHtml(purchaseStatusLabel(status))}</span>
+      </div>
+      <div class="history-detail-grid">
+        <span><strong>${escapeHtml(partSummary(item))}</strong><small>Part searched</small></span>
+        <span><strong>${escapeHtml(firestoreDate(item.searchedAt))}</strong><small>Date searched</small></span>
+        <span><strong>${Number(item.resultsCount || item.results?.length || 0)}</strong><small>Results saved</small></span>
+        <span><strong>${escapeHtml(item.provider || "PartHunt")}</strong><small>Provider</small></span>
+      </div>
+      <label class="history-status-control">
+        <span>Purchase status</span>
+        <select data-history-status="${item.id}">
+          ${[
+            ["still_looking", "Still looking"],
+            ["found_not_bought", "Found but not bought"],
+            ["bought", "Bought"],
+            ["could_not_find", "Could not find item"],
+            ["no_longer_needed", "No longer needed"],
+          ].map(([value, label]) => `<option value="${value}" ${value === status ? "selected" : ""}>${label}</option>`).join("")}
+        </select>
+      </label>
+      <div class="history-card-actions">
+        <button class="button button-secondary" type="button" data-view-history="${item.id}">View Results</button>
+        <button class="button button-ghost" type="button" data-rerun-history="${item.id}">Search Again</button>
+        <button class="button button-primary" type="button" data-review-history="${item.id}">Leave Review</button>
+      </div>
+    </article>`;
+  }).join("");
+
+  grid.querySelectorAll("[data-view-history]").forEach((button) => button.addEventListener("click", () => {
+    const item = history.find((entry) => entry.id === button.dataset.viewHistory);
+    if (!item) return;
+    sessionStorage.setItem("parthunt-current-search", JSON.stringify(historyPayload(item)));
+    location.href = "/search/results/demo-search/";
+  }));
+  grid.querySelectorAll("[data-rerun-history]").forEach((button) => button.addEventListener("click", () => {
+    const item = history.find((entry) => entry.id === button.dataset.rerunHistory);
+    if (!item) return;
+    runSearch(historyPayload(item));
+  }));
+  grid.querySelectorAll("[data-review-history]").forEach((button) => button.addEventListener("click", () => {
+    const item = history.find((entry) => entry.id === button.dataset.reviewHistory);
+    if (!item) return;
+    sessionStorage.setItem("parthunt-review-history", JSON.stringify(historyPayload(item)));
+    location.href = "/reviews/new/demo-history/";
+  }));
+  grid.querySelectorAll("[data-history-status]").forEach((select) => select.addEventListener("change", async () => {
+    select.disabled = true;
+    try {
+      await updateDoc(doc(db, "users", currentUser.uid, "searchHistory", select.dataset.historyStatus), {
+        purchaseStatus: select.value,
+        updatedAt: serverTimestamp(),
+      });
+      const item = history.find((entry) => entry.id === select.dataset.historyStatus);
+      if (item) item.purchaseStatus = select.value;
+      renderHistoryList(history);
+    } catch (error) {
+      console.error(error);
+      select.disabled = false;
+    }
+  }));
+}
+
 async function initProtectedPages() {
   if (!["dashboard", "history", "saved-parts", "settings", "review-new"].includes(page)) return;
   if (!currentUser) {
@@ -1022,7 +1236,9 @@ async function initProtectedPages() {
   }
   if (page === "history") {
     const history = await loadCollection("searchHistory", "searchedAt").catch(() => []);
-    $("#historyGrid").innerHTML = history.length ? history.map((item) => `<article class="history-card"><p class="eyebrow">${item.searchType}</p><h3>${item.rawQuery}</h3><div class="result-meta"><span class="tag">${item.resultsCount || 0} results</span><span class="tag">${item.purchaseStatus || "still_looking"}</span></div><div class="history-card-actions"><a class="button button-secondary" href="/search/results/demo-search/">View Results</a><a class="button button-primary" href="/reviews/new/demo-history/">Mark as Bought</a></div></article>`).join("") : `<div class="empty-state">No searches yet.</div>`;
+    renderHistoryList(history);
+    $("#historySearch")?.addEventListener("input", () => renderHistoryList(history));
+    $("#historyStatusFilter")?.addEventListener("change", () => renderHistoryList(history));
   }
   if (page === "saved-parts") {
     const saved = await loadCollection("savedParts", "savedAt").catch(() => []);
@@ -1088,15 +1304,18 @@ onAuthStateChanged(auth, async (user) => {
     if (pending?.type === "openListing") window.open(pending.url, "_blank", "noopener,noreferrer");
     if (pending?.type === "runSearch") runSearch(pending.search);
     if (pending?.type === "saveSearch") {
-      await saveSearch({
+      const savedId = await saveSearch({
         searchType: pending.search.searchType,
         rawQuery: pending.search.rawQuery,
         generatedSearchTerms: pending.search.generatedSearchTerms || [pending.search.rawQuery],
         vehicle: pending.search.vehicle || null,
         selectedPart: pending.search.selectedPart || null,
         partNumber: pending.search.partNumber || null,
+        provider: pending.search.provider || "",
+        results: pending.search.results || [],
         resultsCount: pending.search.results?.length || 0,
       });
+      pending.search.savedHistoryId = savedId;
       sessionStorage.setItem("parthunt-current-search", JSON.stringify(pending.search));
       location.href = "/search/results/demo-search/";
     }
