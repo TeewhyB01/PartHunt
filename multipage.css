@@ -755,6 +755,19 @@ body[data-page="search-results"] .page-hero.compact {
   background: #101827;
 }
 
+[data-theme="dark"] .result-card {
+  background:
+    linear-gradient(180deg, rgba(16, 24, 39, 0.97), rgba(18, 28, 46, 0.94)),
+    #101827;
+}
+
+[data-theme="dark"] .result-card h3,
+[data-theme="dark"] .compare-card h3,
+[data-theme="dark"] .compare-card dd,
+[data-theme="dark"] .compare-modal-header h2 {
+  color: #f9fafb;
+}
+
 [data-theme="dark"] .price {
   color: #f9fafb;
 }
@@ -765,6 +778,27 @@ body[data-page="search-results"] .page-hero.compact {
 
 [data-theme="dark"] .compare-items span {
   background: rgba(18, 28, 46, 0.92);
+}
+
+[data-theme="dark"] .compare-modal {
+  border-color: rgba(38, 50, 68, 0.95);
+  background:
+    linear-gradient(180deg, rgba(16, 24, 39, 0.98), rgba(18, 28, 46, 0.96)),
+    #101827;
+}
+
+[data-theme="dark"] .compare-modal .icon-button {
+  color: #f9fafb;
+  border-color: #263244;
+  background: #121c2e;
+}
+
+[data-theme="dark"] .compare-card {
+  background: rgba(18, 28, 46, 0.92);
+}
+
+[data-theme="dark"] .compare-card-image {
+  background: linear-gradient(145deg, rgba(16, 24, 39, 0.98), rgba(18, 28, 46, 0.92));
 }
 
 .pagination-controls {

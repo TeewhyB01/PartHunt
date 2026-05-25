@@ -228,6 +228,15 @@ function isValidListingUrl(url, platformName = "") {
   }
 }
 
+function escapeHtml(value = "") {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 function platformLogo(platform = {}, small = false) {
   const name = platform.name || platform.platformName || "Platform";
   const logoUrl = platform.logoUrl || platform.platformLogoUrl || "";
@@ -239,7 +248,7 @@ function platformLogo(platform = {}, small = false) {
 
 function listingImage(result) {
   if (result.imageUrl) {
-    return `<img src="${result.imageUrl}" alt="${result.title}" loading="lazy" onerror="this.closest('.result-image').classList.add('image-missing'); this.remove();" />`;
+    return `<img src="${escapeHtml(result.imageUrl)}" alt="${escapeHtml(result.title)}" loading="lazy" onerror="this.closest('.result-image').classList.add('image-missing'); this.remove();" />`;
   }
   return `<div class="no-image-fallback"><span>No image available</span></div>`;
 }
@@ -755,21 +764,85 @@ function renderCompareTray(search = {}) {
   }
   tray.classList.toggle("hidden", !selectedResults.length);
   tray.innerHTML = selectedResults.length ? `
-    <div>
+    <button class="compare-tray-main" type="button" data-open-compare aria-label="Open comparison">
+      <div>
       <p class="eyebrow">Compare</p>
       <strong>${selectedResults.length} selected</strong>
-    </div>
-    <div class="compare-items">
-      ${selectedResults.map((result) => `<span>${result.title.slice(0, 44)}${result.title.length > 44 ? "..." : ""}</span>`).join("")}
-    </div>
+      </div>
+      <div class="compare-items">
+        ${selectedResults.map((result) => `<span>${escapeHtml(result.title.slice(0, 44))}${result.title.length > 44 ? "..." : ""}</span>`).join("")}
+      </div>
+    </button>
     <button class="button button-ghost" type="button" data-clear-compare>Clear</button>
   ` : "";
+  tray.querySelector("[data-open-compare]")?.addEventListener("click", () => openCompareOverlay(search));
   tray.querySelector("[data-clear-compare]")?.addEventListener("click", () => {
     saveComparedResultIds([]);
     renderCompareTray(search);
     $$(".result-card.is-compared").forEach((card) => card.classList.remove("is-compared"));
     $$("[data-compare]").forEach((button) => (button.textContent = "Compare"));
   });
+}
+
+function openCompareOverlay(search = {}) {
+  const selectedIds = comparedResultIds();
+  const selectedResults = (search.results || []).filter((result) => selectedIds.includes(result.id));
+  if (!selectedResults.length) return;
+
+  let overlay = $("#compareOverlay");
+  if (!overlay) {
+    document.body.insertAdjacentHTML("beforeend", `<section id="compareOverlay" class="compare-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="compareOverlayTitle"></section>`);
+    overlay = $("#compareOverlay");
+  }
+
+  overlay.innerHTML = `
+    <div class="compare-modal">
+      <div class="compare-modal-header">
+        <div>
+          <p class="eyebrow">Part comparison</p>
+          <h2 id="compareOverlayTitle">Compare selected listings</h2>
+        </div>
+        <button class="icon-button" type="button" data-close-compare aria-label="Close comparison">×</button>
+      </div>
+      <div class="compare-table" style="--compare-count: ${selectedResults.length}">
+        ${selectedResults.map((result) => {
+          const valid = isValidListingUrl(result.listingUrl, result.platformName);
+          return `<article class="compare-card">
+            <div class="compare-card-image">${listingImage(result)}</div>
+            <div class="compare-card-body">
+              <div class="result-platform">${platformLogo(result, true)}<div><strong>${escapeHtml(result.platformName || "Listing")}</strong><span>${escapeHtml(result.platformCategory || "External listing")}</span></div></div>
+              <h3>${escapeHtml(result.title)}</h3>
+              <p>${escapeHtml(result.description || "Check the seller listing carefully before buying.")}</p>
+              <dl>
+                <div><dt>Price</dt><dd>${escapeHtml(result.price || "Check listing")}</dd></div>
+                <div><dt>Condition</dt><dd>${escapeHtml(result.condition || "Check listing")}</dd></div>
+                <div><dt>Location</dt><dd>${escapeHtml(result.location || "Check listing")}</dd></div>
+                <div><dt>Delivery</dt><dd>${escapeHtml(result.deliveryOption || "Check listing")}</dd></div>
+                <div><dt>Match</dt><dd>${escapeHtml(result.confidenceLabel || "Check carefully")}</dd></div>
+              </dl>
+              ${valid ? `<button class="button button-primary full-width" type="button" data-listing="${escapeHtml(result.listingUrl)}">View Exact Listing</button>` : `<button class="button button-ghost full-width" type="button" disabled>Listing unavailable</button>`}
+            </div>
+          </article>`;
+        }).join("")}
+      </div>
+    </div>
+  `;
+  overlay.classList.remove("hidden");
+  document.body.classList.add("modal-open");
+  overlay.querySelector("[data-close-compare]")?.addEventListener("click", closeCompareOverlay);
+  overlay.addEventListener("click", (event) => {
+    if (event.target === overlay) closeCompareOverlay();
+  }, { once: true });
+  overlay.querySelectorAll("[data-listing]").forEach((button) => button.addEventListener("click", () => {
+    const url = button.dataset.listing;
+    if (!requireAuth({ type: "openListing", url }, location.pathname)) return;
+    window.open(url, "_blank", "noopener,noreferrer");
+  }));
+}
+
+function closeCompareOverlay() {
+  $("#compareOverlay")?.classList.add("hidden");
+  document.body.classList.remove("modal-open");
 }
 
 function toggleCompare(resultId, search = {}) {
@@ -822,21 +895,21 @@ function initResults() {
     return `<article class="result-card" data-result-id="${result.id}">
       <div class="result-image">
         ${listingImage(result)}
-        <span class="result-image-badge">${result.condition || "Check listing"}</span>
+        <span class="result-image-badge">${escapeHtml(result.condition || "Check listing")}</span>
       </div>
       <div class="result-body">
         <div class="result-card-top">
-          <div class="result-platform">${platformLogo(platform, true)}<div><strong>${result.platformName}</strong><span>${result.platformCategory}</span></div></div>
-          <span class="tag confidence ${confidenceClass}">${result.confidenceLabel}</span>
+          <div class="result-platform">${platformLogo(platform, true)}<div><strong>${escapeHtml(result.platformName || "Listing")}</strong><span>${escapeHtml(result.platformCategory || "External listing")}</span></div></div>
+          <span class="tag confidence ${confidenceClass}">${escapeHtml(result.confidenceLabel || "Check carefully")}</span>
         </div>
-        <h3>${result.title}</h3>
-        <p class="muted">${result.description}</p>
-        <div class="result-meta"><span class="tag">${result.location}</span><span class="tag">${result.deliveryOption || (result.delivery ? "Delivery available" : "Collection only")}</span></div>
+        <h3>${escapeHtml(result.title)}</h3>
+        <p class="muted">${escapeHtml(result.description || "Review the original listing carefully before buying.")}</p>
+        <div class="result-meta"><span class="tag">${escapeHtml(result.location || "Check listing")}</span><span class="tag">${escapeHtml(result.deliveryOption || (result.delivery ? "Delivery available" : "Collection only"))}</span></div>
         <div class="result-card-bottom">
-          <div><span class="price">${result.price}</span><small>Confirm on seller page</small></div>
+          <div><span class="price">${escapeHtml(result.price || "Check listing")}</span><small>Confirm on seller page</small></div>
         </div>
         <div class="card-actions">
-          ${valid ? `<button class="button button-primary" type="button" data-listing="${result.listingUrl}">View Exact Listing</button>` : `<button class="button button-ghost" type="button" disabled>Listing unavailable</button>`}
+          ${valid ? `<button class="button button-primary" type="button" data-listing="${escapeHtml(result.listingUrl)}">View Exact Listing</button>` : `<button class="button button-ghost" type="button" disabled>Listing unavailable</button>`}
           <button class="button button-secondary" type="button" data-compare="${result.id}">Compare</button>
           <button class="button button-ghost" type="button" data-agent="${result.id}">Ask Agent</button>
         </div>

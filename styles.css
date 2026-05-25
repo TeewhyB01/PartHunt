@@ -932,19 +932,22 @@ h4 {
 
 .results-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1.1rem;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
 }
 
 .result-card {
   display: grid;
-  grid-template-columns: minmax(190px, 0.88fr) minmax(0, 1.12fr);
+  grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
   min-height: 100%;
   border: 1px solid var(--border);
   border-radius: 8px;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 14px 35px rgba(38, 70, 102, 0.08);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 251, 255, 0.92)),
+    #fff;
+  box-shadow: 0 18px 45px rgba(38, 70, 102, 0.1);
+  min-width: 0;
 }
 
 .result-card.is-compared {
@@ -956,10 +959,12 @@ h4 {
   position: relative;
   display: grid;
   place-items: center;
-  min-height: 100%;
+  min-height: 250px;
+  overflow: hidden;
   color: #fff;
   background:
-    linear-gradient(135deg, rgba(63, 125, 246, 0.78), rgba(68, 200, 186, 0.72)),
+    radial-gradient(circle at 18% 16%, rgba(255, 255, 255, 0.8), transparent 28%),
+    linear-gradient(135deg, rgba(40, 91, 188, 0.92), rgba(42, 196, 179, 0.8)),
     #dcecff;
   font-size: 0.84rem;
   font-weight: 800;
@@ -968,10 +973,11 @@ h4 {
 .result-card img {
   width: 100%;
   height: 100%;
-  min-height: 260px;
+  min-height: 250px;
   object-fit: contain;
-  padding: 0.75rem;
-  background: #f8fbff;
+  padding: 0.85rem;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(236, 246, 255, 0.92));
 }
 
 .result-image-badge {
@@ -996,7 +1002,9 @@ h4 {
   display: flex;
   flex: 1;
   flex-direction: column;
-  padding: 1.05rem;
+  min-width: 0;
+  padding: 1rem;
+  overflow: hidden;
 }
 
 .result-card-top,
@@ -1005,6 +1013,47 @@ h4 {
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.8rem;
+  min-width: 0;
+}
+
+.result-platform {
+  min-width: 0;
+}
+
+.result-platform > div {
+  min-width: 0;
+}
+
+.result-platform strong,
+.result-platform span {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.result-card h3 {
+  display: -webkit-box;
+  margin: 0.88rem 0 0.45rem;
+  color: #111827;
+  font-size: 1.08rem;
+  line-height: 1.28;
+  letter-spacing: 0;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.result-card p {
+  display: -webkit-box;
+  margin: 0;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
 }
 
 .result-meta {
@@ -1012,9 +1061,11 @@ h4 {
   flex-wrap: wrap;
   gap: 0.45rem;
   margin: 0.7rem 0;
+  min-width: 0;
 }
 
 .tag {
+  max-width: 100%;
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 0.28rem 0.45rem;
@@ -1022,6 +1073,9 @@ h4 {
   background: #f8fbff;
   font-size: 0.74rem;
   font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .confidence {
@@ -1043,9 +1097,12 @@ h4 {
 }
 
 .price {
+  display: inline-block;
+  max-width: 100%;
   color: #122238;
-  font-size: 1.5rem;
+  font-size: 1.28rem;
   font-weight: 850;
+  overflow-wrap: anywhere;
 }
 
 .result-card-bottom small {
@@ -1058,9 +1115,17 @@ h4 {
 
 .card-actions {
   display: grid;
-  grid-template-columns: 1.15fr 0.85fr 0.85fr;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.7fr) minmax(0, 0.7fr);
   gap: 0.5rem;
   margin-top: auto;
+  min-width: 0;
+}
+
+.card-actions .button {
+  min-width: 0;
+  width: 100%;
+  padding-inline: 0.7rem;
+  white-space: normal;
 }
 
 .card-actions .button:first-child {
@@ -1083,7 +1148,7 @@ h4 {
   bottom: 1rem;
   z-index: 65;
   display: grid;
-  grid-template-columns: auto minmax(220px, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 0.8rem;
   align-items: center;
   width: min(760px, calc(100vw - 2rem));
@@ -1093,6 +1158,20 @@ h4 {
   background: rgba(255, 255, 255, 0.94);
   box-shadow: 0 20px 50px rgba(38, 70, 102, 0.18);
   backdrop-filter: blur(18px);
+}
+
+.compare-tray-main {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.8rem;
+  align-items: center;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
 }
 
 .compare-tray.hidden {
@@ -1107,6 +1186,7 @@ h4 {
 
 .compare-items span {
   flex: 0 0 auto;
+  max-width: 220px;
   border: 1px solid var(--border);
   border-radius: 999px;
   padding: 0.4rem 0.62rem;
@@ -1114,6 +1194,157 @@ h4 {
   background: rgba(248, 251, 255, 0.9);
   font-size: 0.78rem;
   font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compare-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(7, 11, 18, 0.56);
+  backdrop-filter: blur(14px);
+}
+
+.compare-overlay.hidden {
+  display: none;
+}
+
+.compare-modal {
+  display: grid;
+  gap: 1rem;
+  width: min(1180px, 100%);
+  max-height: min(860px, calc(100vh - 2rem));
+  border: 1px solid rgba(229, 231, 235, 0.8);
+  border-radius: 8px;
+  padding: 1rem;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 251, 255, 0.96)),
+    #fff;
+  box-shadow: 0 28px 90px rgba(7, 11, 18, 0.28);
+}
+
+.compare-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.compare-modal-header h2 {
+  margin: 0.1rem 0 0;
+  font-size: 1.35rem;
+  letter-spacing: 0;
+}
+
+.compare-modal .icon-button {
+  flex: 0 0 auto;
+  color: #111827;
+  border-color: var(--border);
+  background: #fff;
+}
+
+.compare-table {
+  display: grid;
+  grid-template-columns: repeat(var(--compare-count), minmax(250px, 1fr));
+  gap: 0.8rem;
+  min-height: 0;
+  overflow-x: auto;
+  overflow-y: auto;
+  padding-bottom: 0.3rem;
+}
+
+.compare-card {
+  display: grid;
+  grid-template-rows: 190px 1fr;
+  min-width: 250px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.84);
+}
+
+.compare-card-image {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  overflow: hidden;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(236, 246, 255, 0.92));
+}
+
+.compare-card-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 0.75rem;
+}
+
+.compare-card-body {
+  display: grid;
+  align-content: start;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 0.9rem;
+}
+
+.compare-card h3 {
+  display: -webkit-box;
+  margin: 0;
+  color: #111827;
+  font-size: 0.98rem;
+  line-height: 1.28;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.compare-card p {
+  display: -webkit-box;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.compare-card dl {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+}
+
+.compare-card dl div {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 0.55rem;
+  align-items: baseline;
+  border-top: 1px solid var(--border);
+  padding-top: 0.45rem;
+}
+
+.compare-card dt {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.compare-card dd {
+  margin: 0;
+  color: #111827;
+  font-size: 0.86rem;
+  font-weight: 760;
+  overflow-wrap: anywhere;
 }
 
 .upload-card {
@@ -1277,7 +1508,6 @@ h4 {
 @media (max-width: 1100px) {
   .form-grid,
   .feature-band,
-  .results-grid,
   .platform-grid,
   .dashboard-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1373,6 +1603,19 @@ h4 {
   .result-card,
   .compare-tray {
     grid-template-columns: 1fr;
+  }
+
+  .compare-tray-main {
+    grid-template-columns: 1fr;
+  }
+
+  .compare-table {
+    grid-template-columns: 1fr;
+    overflow-x: hidden;
+  }
+
+  .compare-card {
+    min-width: 0;
   }
 
   .result-card img {
