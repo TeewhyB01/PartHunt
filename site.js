@@ -414,15 +414,18 @@ function initPlatformDirectory() {
 async function saveSearch(search) {
   if (!currentUser) return null;
   const results = serialisableResults(search.results || []);
-  const ref = await addDoc(collection(db, "users", currentUser.uid, "searchHistory"), withoutUndefined({
+  const cleanSearch = withoutUndefined({
     ...search,
     results,
     savedResultIds: results.map((result) => result.id),
     userId: currentUser.uid,
+  });
+  const ref = await addDoc(collection(db, "users", currentUser.uid, "searchHistory"), {
+    ...cleanSearch,
     purchaseStatus: "still_looking",
     searchedAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
-  }));
+  });
   return ref.id;
 }
 
@@ -1072,7 +1075,7 @@ function initResults() {
       button.textContent = "Saved";
     } catch (error) {
       console.error(error);
-      status.textContent = "Could not save this search. Check your connection and Firestore rules.";
+      status.textContent = `Could not save this search: ${error.message || "Check your connection and Firestore rules."}`;
       button.disabled = false;
       button.textContent = "Save Search";
     }
