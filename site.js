@@ -673,6 +673,15 @@ function findOptionByTextOrValue(select, value) {
   return [...select.options].find((option) => option.value.toLowerCase() === normalised || option.text.toLowerCase() === normalised)?.value || "";
 }
 
+function ensureSelectOption(select, value, label = value) {
+  if (!select || !value) return "";
+  const existing = findOptionByTextOrValue(select, value);
+  if (existing) return existing;
+  const option = new Option(label, value);
+  select.appendChild(option);
+  return option.value;
+}
+
 function vehicleYearRange(profile = {}) {
   const currentYear = new Date().getFullYear();
   return {
@@ -683,13 +692,14 @@ function vehicleYearRange(profile = {}) {
 
 function getVariantProfiles(makeValue, modelValue) {
   if (!makeValue || !modelValue) return [];
-  return popularVehicleVariants[makeValue]?.[modelValue] || [
+  const profiles = popularVehicleVariants[makeValue]?.[modelValue] || [
     { name: "Standard", from: 2012 },
     { name: "SE", from: 2012 },
     { name: "Sport", from: 2012 },
     { name: "Premium", from: 2012 },
     { name: "Other / not sure", from: 2012 },
   ];
+  return profiles.some((profile) => profile.name === "Other / not sure") ? profiles : [...profiles, { name: "Other / not sure", from: 2012 }];
 }
 
 function populateVehicleYears(profile = null, selectedYear = "") {
@@ -741,12 +751,104 @@ function populateVehicleModels(makeValue, selectedModel = "") {
   modelSelect.disabled = !models.length;
   populateVehicleVariants("", "");
   if (selectedModel) {
-    const matchingValue = findOptionByTextOrValue(modelSelect, selectedModel);
+    const matchingValue = ensureSelectOption(modelSelect, selectedModel, selectedModel);
     if (matchingValue) {
+      modelSelect.disabled = false;
       modelSelect.value = matchingValue;
       populateVehicleVariants(makeValue, matchingValue);
     }
   }
+}
+
+function getStoredRegistrationVehicle() {
+  try {
+    return JSON.parse(sessionStorage.getItem("parthunt-registration-vehicle") || "null");
+  } catch {
+    return null;
+  }
+}
+
+function formatEngineSize(vehicle = {}) {
+  if (vehicle.engineSize) return vehicle.engineSize;
+  const capacity = Number(vehicle.engineCapacity);
+  if (!capacity) return "";
+  const litres = capacity >= 1000 ? `${(capacity / 1000).toFixed(1).replace(/\.0$/, "")}L` : "";
+  return [litres, `${capacity}cc`].filter(Boolean).join(" ");
+}
+
+function formatLookupSummary(vehicle = {}) {
+  const rows = [
+    ["Registration", vehicle.registrationNumber],
+    ["Vehicle", [vehicle.yearOfManufacture, vehicle.make, vehicle.model].filter(Boolean).join(" ")],
+    ["Fuel", vehicle.fuelType],
+    ["Engine", formatEngineSize(vehicle)],
+    ["Colour", vehicle.colour],
+    ["MOT", vehicle.motStatus],
+    ["Tax", vehicle.taxStatus],
+  ];
+  return rows.filter(([, value]) => value).map(([label, value]) => `${label}: ${value}`).join("\n");
+}
+
+function updateLookupSummary(vehicle = {}) {
+  const wrapper = $("#lookupVehicleSummaryWrap");
+  const summary = $("#lookupVehicleSummary");
+  if (!wrapper || !summary) return;
+  summary.value = formatLookupSummary(vehicle);
+  wrapper.classList.toggle("hidden", !summary.value);
+}
+
+function textMatches(a, b) {
+  return !a || !b || String(a).toLowerCase() === String(b).toLowerCase();
+}
+
+function enrichVehicleForSearch(vehicle = {}) {
+  const lookupVehicle = getStoredRegistrationVehicle();
+  if (!lookupVehicle) return vehicle;
+  const lookupMatchesCurrentFields = textMatches(lookupVehicle.make, vehicle.make)
+    && textMatches(lookupVehicle.model, vehicle.model)
+    && textMatches(lookupVehicle.yearOfManufacture, vehicle.year);
+  if (!lookupMatchesCurrentFields) return vehicle;
+  return {
+    ...vehicle,
+    registrationNumber: lookupVehicle.registrationNumber,
+    fuelType: lookupVehicle.fuelType || vehicle.fuelType || "",
+    engineCapacity: lookupVehicle.engineCapacity || "",
+    engineSize: formatEngineSize(lookupVehicle),
+    colour: lookupVehicle.colour || "",
+    motStatus: lookupVehicle.motStatus || "",
+    taxStatus: lookupVehicle.taxStatus || "",
+    yearOfManufacture: lookupVehicle.yearOfManufacture || vehicle.year,
+    lookupSource: lookupVehicle.source || "",
+  };
+}
+
+function compactUnique(values = []) {
+  const seen = new Set();
+  return values.map((value) => String(value || "").replace(/\s+/g, " ").trim()).filter((value) => {
+    const key = value.toLowerCase();
+    if (!value || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function buildVehiclePartSearchTerms(vehicle = {}) {
+  const variant = /other|not sure/i.test(vehicle.variant || "") ? "" : vehicle.variant;
+  const base = [vehicle.year, vehicle.make, vehicle.model, variant, vehicle.wantedItem].filter(Boolean).join(" ");
+  const fuelTerm = vehicle.fuelType ? `${base} ${vehicle.fuelType}` : "";
+  const engineTerm = vehicle.engineSize ? `${base} ${vehicle.engineSize}` : "";
+  const colourTerm = vehicle.colour && /bumper|door|bonnet|boot|wing|mirror|panel|tailgate|lid/i.test(vehicle.wantedItem || "")
+    ? `${base} ${vehicle.colour}`
+    : "";
+  return compactUnique([
+    [base, vehicle.fuelType, vehicle.engineSize].filter(Boolean).join(" "),
+    base,
+    `${vehicle.make || ""} ${vehicle.model || ""} ${vehicle.wantedItem || ""}`,
+    `${vehicle.year || ""} ${vehicle.make || ""} ${vehicle.model || ""} ${vehicle.wantedItem || ""}`,
+    fuelTerm,
+    engineTerm,
+    colourTerm,
+  ]);
 }
 
 function initVehicleDropdowns() {
@@ -773,9 +875,16 @@ function initVehicleSearch() {
   $("#lookupRegistrationButton")?.addEventListener("click", lookupRegistration);
   $("#vehicleSearchForm")?.addEventListener("submit", (event) => {
     event.preventDefault();
-    const vehicle = { make: $("#make").value, model: $("#model").value, variant: $("#variant").value, year: $("#year").value, wantedItem: $("#wantedItem").value.trim() };
+    const vehicle = enrichVehicleForSearch({
+      make: $("#make").value,
+      model: $("#model").value,
+      variant: $("#variant").value,
+      year: $("#year").value,
+      wantedItem: $("#wantedItem").value.trim(),
+    });
     sessionStorage.setItem("parthunt-vehicle", JSON.stringify(vehicle));
-    const searchBase = [vehicle.year, vehicle.make, vehicle.model, vehicle.variant, vehicle.wantedItem].filter(Boolean).join(" ");
+    const generatedSearchTerms = buildVehiclePartSearchTerms(vehicle);
+    const searchBase = generatedSearchTerms[0] || [vehicle.year, vehicle.make, vehicle.model, vehicle.variant, vehicle.wantedItem].filter(Boolean).join(" ");
     runSearch({
       searchType: "vehicle_part",
       vehicle,
@@ -786,28 +895,39 @@ function initVehicleSearch() {
         alternativeNames: [],
       },
       rawQuery: searchBase.trim(),
-      generatedSearchTerms: [searchBase.trim(), `${vehicle.make} ${vehicle.model} ${vehicle.wantedItem}`.trim(), `${vehicle.year} ${vehicle.make} ${vehicle.model} ${vehicle.wantedItem}`.trim()],
+      generatedSearchTerms,
     });
   });
 }
 
 function normaliseRegistration(value) {
-  return value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  return String(value || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
 
 function fillVehicleFromLookup(vehicle) {
   const makeSelect = $("#make");
+  const modelSelect = $("#model");
+  const variantSelect = $("#variant");
   const yearSelect = $("#year");
-  const makeValue = findOptionByTextOrValue(makeSelect, vehicle.make);
+  const makeValue = findOptionByTextOrValue(makeSelect, vehicle.make) || ensureSelectOption(makeSelect, vehicle.make, vehicle.make);
   if (makeValue) {
     makeSelect.value = makeValue;
     populateVehicleModels(makeValue, vehicle.model);
   }
-  if (vehicle.yearOfManufacture) {
+
+  const modelValue = findOptionByTextOrValue(modelSelect, vehicle.model);
+  if (modelValue) {
+    modelSelect.value = modelValue;
+    const fallbackVariant = findOptionByTextOrValue(variantSelect, "Other / not sure") || variantSelect?.options?.[1]?.value || "";
+    populateVehicleVariants(makeValue, modelValue, fallbackVariant, vehicle.yearOfManufacture);
+  }
+
+  if (vehicle.yearOfManufacture && !yearSelect.disabled) {
     const yearValue = findOptionByTextOrValue(yearSelect, vehicle.yearOfManufacture);
     if (yearValue) yearSelect.value = yearValue;
   }
   sessionStorage.setItem("parthunt-registration-vehicle", JSON.stringify(vehicle));
+  updateLookupSummary(vehicle);
 }
 
 async function lookupRegistration() {
@@ -834,7 +954,7 @@ async function lookupRegistration() {
     const data = await response.json();
     if (!response.ok) throw new Error(data.message || "Vehicle lookup failed.");
     fillVehicleFromLookup(data.vehicle);
-    status.textContent = `Found ${data.vehicle.yearOfManufacture || ""} ${data.vehicle.make || "vehicle"}${data.vehicle.model ? ` ${data.vehicle.model}` : ""}. Add the model if DVLA did not provide it, then view the car.`;
+    status.textContent = `Found ${data.vehicle.yearOfManufacture || ""} ${data.vehicle.make || "vehicle"}${data.vehicle.model ? ` ${data.vehicle.model}` : ""}. Select the model if DVLA did not provide it, then search for the part.`;
   } catch (error) {
     console.warn(error);
     if (registrationNumber === "AA19AAA") {

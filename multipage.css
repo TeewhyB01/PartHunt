@@ -432,6 +432,16 @@ body[data-page="search-results"] .page-hero.compact {
   align-items: end;
 }
 
+.registration-summary {
+  grid-column: 1 / -1;
+}
+
+.registration-summary textarea {
+  min-height: 7.5rem;
+  resize: vertical;
+  line-height: 1.5;
+}
+
 .auth-layout {
   display: grid;
   grid-template-columns: minmax(0, 0.85fr) minmax(320px, 0.55fr);

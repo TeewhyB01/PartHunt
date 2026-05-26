@@ -17,6 +17,10 @@
             <button id="lookupRegistrationButton" class="button button-secondary" type="button">Find Vehicle</button>
           </div>
           <p id="registrationLookupStatus" class="muted" role="status"></p>
+          <label id="lookupVehicleSummaryWrap" class="registration-summary hidden">
+            <span>Vehicle found</span>
+            <textarea id="lookupVehicleSummary" rows="5" readonly placeholder="Vehicle lookup details will appear here."></textarea>
+          </label>
         </div>
         <form id="vehicleSearchForm" class="form-panel form-grid">
           <label><span>Make</span><select id="make" required><option value="">Select make</option></select></label>

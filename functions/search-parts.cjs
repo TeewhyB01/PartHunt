@@ -45,7 +45,12 @@ function buildSearchQuery(input = {}) {
   const vehicle = input.vehicle || {};
   const selectedPart = input.selectedPart || {};
   const partName = cleanText(selectedPart.name || vehicle.wantedItem || "");
-  const vehicleTerms = [vehicle.year, vehicle.make, vehicle.model, vehicle.variant].map(cleanText).filter(Boolean);
+  const variant = /other|not sure/i.test(vehicle.variant || "") ? "" : vehicle.variant;
+  const vehicleTerms = [vehicle.year, vehicle.make, vehicle.model, variant].map(cleanText).filter(Boolean);
+  const engineCapacity = Number(vehicle.engineCapacity);
+  const engineSize = cleanText(vehicle.engineSize || (engineCapacity ? `${engineCapacity >= 1000 ? `${(engineCapacity / 1000).toFixed(1).replace(/\.0$/, "")}L ` : ""}${engineCapacity}cc` : ""));
+  const colour = vehicle.colour && /bumper|door|bonnet|boot|wing|mirror|panel|tailgate|lid/i.test(partName) ? vehicle.colour : "";
+  const fitmentTerms = [vehicle.bodyType, vehicle.fuelType, engineSize, colour].map(cleanText).filter(Boolean);
   const terms = [];
 
   if (input.partNumber) terms.push(`"${cleanText(input.partNumber)}"`);
@@ -53,6 +58,9 @@ function buildSearchQuery(input = {}) {
   if (partName && !terms.some((term) => term.replace(/"/g, "").toLowerCase() === partName.toLowerCase())) {
     terms.push(partName);
   }
+  fitmentTerms.forEach((term) => {
+    if (!terms.some((existing) => existing.toLowerCase() === term.toLowerCase())) terms.push(term);
+  });
   if (!input.partNumber && !partName && input.rawQuery) terms.push(cleanText(input.rawQuery));
   if (!input.partNumber && partName) terms.push("car part");
 
