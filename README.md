@@ -14,7 +14,7 @@ PartHunt is a Firebase-backed web app for finding used, scrap, recycled, and rep
 - Firebase Storage photo uploads under `users/{uid}/part-photos`.
 - Search by part number.
 - Search by vehicle details.
-- UK registration lookup flow using DVLA Vehicle Enquiry Service through a Firebase Function proxy.
+- UK registration lookup flow using DVLA Vehicle Enquiry Service through a backend proxy.
 - Interactive clickable car part selector.
 - Mock search results structured for a future search API.
 - Filtering, sorting, confidence labels, and original listing links.
@@ -55,13 +55,15 @@ The included `firebase.json`, `firestore.rules`, and `storage.rules` are ready f
 The official UK route for registration lookup is the DVLA Vehicle Enquiry Service API. It accepts a vehicle registration number and can return vehicle details such as make, year of manufacture, fuel type, engine capacity, colour, MOT status and tax status.
 
 
-This project includes a Firebase Function proxy at:
+This project includes a backend proxy at:
 
 ```text
 /api/vehicle-lookup
 ```
 
-To configure it:
+On Vercel, add `DVLA_API_KEY` as a server-side environment variable for Production.
+
+For Firebase Hosting, configure the matching function secret:
 
 ```sh
 firebase functions:secrets:set DVLA_API_KEY

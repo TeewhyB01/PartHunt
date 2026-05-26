@@ -821,12 +821,12 @@ async function lookupRegistration() {
   if (isLocalStatic && registrationNumber === "AA19AAA") {
     const demoVehicle = { registrationNumber, make: "FORD", model: "Focus", yearOfManufacture: 2019, fuelType: "Petrol", engineCapacity: 2000, colour: "Red", source: "demo" };
     fillVehicleFromLookup(demoVehicle);
-    status.textContent = "Demo vehicle loaded. Deploy the Firebase Function and DVLA API key for live registration lookup.";
+    status.textContent = "Demo vehicle loaded. Live DVLA lookup is available on the deployed app.";
     return;
   }
   status.textContent = "Looking up vehicle details...";
   try {
-    const response = await fetch("/api/vehicle-lookup", {
+    const response = await fetch("/api/vehicle-lookup/", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ registrationNumber }),
@@ -840,10 +840,10 @@ async function lookupRegistration() {
     if (registrationNumber === "AA19AAA") {
       const demoVehicle = { registrationNumber, make: "FORD", model: "Focus", yearOfManufacture: 2019, fuelType: "Petrol", engineCapacity: 2000, colour: "Red", source: "demo" };
       fillVehicleFromLookup(demoVehicle);
-      status.textContent = "Demo vehicle loaded. Deploy the Firebase Function and DVLA API key for live registration lookup.";
+      status.textContent = "Demo vehicle loaded. Live DVLA lookup is available on the deployed app.";
       return;
     }
-    status.textContent = "Live DVLA lookup is not available yet. Add the Firebase Function secret DVLA_API_KEY and deploy functions, or try demo plate AA19AAA.";
+    status.textContent = error.message || "Vehicle lookup failed. Check the registration and try again.";
   }
 }
 
