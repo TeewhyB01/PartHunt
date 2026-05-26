@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>My Vehicles · PartHunt AI</title><link rel="icon" href="/favicon.svg" type="image/svg+xml" /><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" /><link rel="stylesheet" href="/styles.css" /><link rel="stylesheet" href="/multipage.css" /></head>
+  <body data-page="my-vehicles">
+    <div id="siteNav"></div>
+    <main class="section">
+      <div class="section-heading"><p class="eyebrow">My Vehicles</p><h1>Your saved cars.</h1><p class="muted">Save up to 5 vehicles, then search parts for each car without entering the details again.</p></div>
+      <div class="dashboard-layout protected-content">
+        <aside class="dashboard-nav"><a href="/dashboard/">Dashboard</a><a href="/my-vehicles/">My Vehicles</a><a href="/history/">Search History</a><a href="/saved-parts/">Saved Parts</a><a href="/settings/">Settings</a></aside>
+        <div class="dashboard-main">
+          <form id="myVehicleForm" class="form-panel form-grid">
+            <label><span>Vehicle name</span><input id="myVehicleName" placeholder="My Lexus, Work van..." /></label>
+            <label><span>Make</span><input id="myVehicleMake" required placeholder="Ford" /></label>
+            <label><span>Model</span><input id="myVehicleModel" required placeholder="Focus" /></label>
+            <label><span>Year</span><input id="myVehicleYear" required inputmode="numeric" placeholder="2019" /></label>
+            <label><span>Variant</span><input id="myVehicleVariant" placeholder="ST-Line, F Sport..." /></label>
+            <label><span>Fuel type</span><input id="myVehicleFuel" placeholder="Petrol, Diesel, Hybrid..." /></label>
+            <label><span>Engine size</span><input id="myVehicleEngine" placeholder="2.0L, 1998cc..." /></label>
+            <label><span>Country</span><select id="myVehicleCountry"></select></label>
+            <button class="button button-primary form-submit" type="submit">Save Vehicle</button>
+            <p id="myVehicleStatus" class="form-status" role="status"></p>
+          </form>
+          <div id="myVehiclesGrid" class="my-vehicles-grid"></div>
+        </div>
+      </div>
+    </main>
+    <div id="siteFooter"></div><div id="loginPrompt"></div><button id="chatToggle" class="chat-toggle" type="button">Ask</button><section id="chatbox" class="chatbox hidden"></section><script type="module" src="/site.js"></script>
+  </body>
+</html>

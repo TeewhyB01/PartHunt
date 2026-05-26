@@ -36,6 +36,44 @@ let pendingRedirectAfterAuth = false;
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 
+const searchCountries = [
+  ["GB", "United Kingdom"],
+  ["US", "United States"],
+  ["IE", "Ireland"],
+  ["CA", "Canada"],
+  ["AU", "Australia"],
+  ["DE", "Germany"],
+  ["FR", "France"],
+  ["ES", "Spain"],
+  ["IT", "Italy"],
+  ["NL", "Netherlands"],
+  ["BE", "Belgium"],
+];
+
+const countryAliases = {
+  uk: "GB",
+  gb: "GB",
+  "great britain": "GB",
+  "united kingdom": "GB",
+  england: "GB",
+  scotland: "GB",
+  wales: "GB",
+  "northern ireland": "GB",
+  us: "US",
+  usa: "US",
+  "united states": "US",
+  "united states of america": "US",
+  ireland: "IE",
+  germany: "DE",
+  france: "FR",
+  spain: "ES",
+  italy: "IT",
+  canada: "CA",
+  australia: "AU",
+  netherlands: "NL",
+  belgium: "BE",
+};
+
 function initials(value) {
   return value.split(/\s+/).map((word) => word[0]).join("").slice(0, 2).toUpperCase();
 }
@@ -43,6 +81,37 @@ function initials(value) {
 function stars(rating) {
   const rounded = Math.round(Number(rating) || 0);
   return `${"★".repeat(rounded)}${"☆".repeat(Math.max(0, 5 - rounded))}`;
+}
+
+function countryLabel(code = "GB") {
+  const normalised = normaliseCountryCode(code);
+  return searchCountries.find(([value]) => value === normalised)?.[1] || "United Kingdom";
+}
+
+function normaliseCountryCode(value = "") {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  const upper = raw.toUpperCase();
+  if (searchCountries.some(([code]) => code === upper)) return upper;
+  return countryAliases[raw.toLowerCase()] || "";
+}
+
+function countryFromLocale(locale = "") {
+  const match = String(locale || "").match(/[-_]([A-Za-z]{2})\b/);
+  return match ? normaliseCountryCode(match[1]) : "";
+}
+
+function detectSearchCountry() {
+  const stored = normaliseCountryCode(localStorage.getItem("parthunt-search-country") || "");
+  if (stored) return stored;
+  const locales = Array.isArray(navigator.languages) && navigator.languages.length ? navigator.languages : [navigator.language];
+  const localeCountry = locales.map(countryFromLocale).find(Boolean);
+  return localeCountry || "GB";
+}
+
+function countryOptions(selected = detectSearchCountry()) {
+  const active = normaliseCountryCode(selected) || "GB";
+  return searchCountries.map(([code, label]) => `<option value="${code}" ${code === active ? "selected" : ""}>${label}</option>`).join("");
 }
 
 function starRating(rating, showNumber = true) {
@@ -92,6 +161,7 @@ function renderShell() {
           </button>
           <div class="account-dropdown" role="menu">
             <a role="menuitem" href="/dashboard/">Dashboard</a>
+            <a role="menuitem" href="/my-vehicles/">My Vehicles</a>
             <a role="menuitem" href="/history/">Search History</a>
             <a role="menuitem" href="/saved-parts/">Saved Parts</a>
             <a role="menuitem" href="/settings/">Settings</a>
@@ -149,7 +219,7 @@ function renderShell() {
       <div class="purchase-modal">
         <p class="eyebrow">Account required</p>
         <h2 id="loginModalTitle">Sign in to continue</h2>
-        <p>Create a free account to open exact seller links, save parts, and track your search history.</p>
+        <p>Create a free account to open exact seller links, save vehicles, and track your search history.</p>
         <div class="login-modal-actions">
           <a id="modalSignIn" class="button button-primary" href="/sign-in/">Sign In</a>
           <a id="modalSignUp" class="button button-secondary" href="/sign-up/">Create Account</a>
@@ -448,6 +518,62 @@ async function saveSearch(search) {
   return ref.id;
 }
 
+async function loadUserVehicles() {
+  if (!currentUser) return [];
+  const snapshot = await getDocs(query(collection(db, "users", currentUser.uid, "vehicles"), orderBy("createdAt", "desc")));
+  return snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+}
+
+function vehicleRecordFromSearchForm() {
+  const vehicle = enrichVehicleForSearch({
+    make: $("#make")?.value || "",
+    model: $("#model")?.value || "",
+    variant: $("#variant")?.value || "",
+    year: $("#year")?.value || "",
+    wantedItem: $("#wantedItem")?.value?.trim() || "",
+  });
+  return {
+    displayName: [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(" "),
+    ...vehicle,
+    country: vehicle.country || detectSearchCountry(),
+  };
+}
+
+function normaliseVehicleRecord(vehicle = {}) {
+  const country = normaliseCountryCode(vehicle.country || detectSearchCountry()) || "GB";
+  return withoutUndefined({
+    displayName: String(vehicle.displayName || [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(" ") || "Saved vehicle").trim(),
+    make: String(vehicle.make || "").trim(),
+    model: String(vehicle.model || "").trim(),
+    year: String(vehicle.year || vehicle.yearOfManufacture || "").trim(),
+    variant: String(vehicle.variant || vehicle.trim || "").trim(),
+    fuelType: String(vehicle.fuelType || "").trim(),
+    engineSize: String(vehicle.engineSize || "").trim(),
+    engineCapacity: vehicle.engineCapacity || "",
+    colour: String(vehicle.colour || "").trim(),
+    registrationNumber: String(vehicle.registrationNumber || "").trim(),
+    country,
+    countryName: countryLabel(country),
+    lookupSource: vehicle.lookupSource || vehicle.source || "",
+  });
+}
+
+async function saveUserVehicle(vehicle = {}) {
+  if (!currentUser) throw new Error("Sign in to save vehicles.");
+  const savedVehicles = await loadUserVehicles();
+  if (savedVehicles.length >= 5) throw new Error("You can save up to 5 vehicles. Delete one before adding another.");
+  const cleanVehicle = normaliseVehicleRecord(vehicle);
+  if (!cleanVehicle.make || !cleanVehicle.model || !cleanVehicle.year) {
+    throw new Error("Add make, model, and year before saving this vehicle.");
+  }
+  const ref = await addDoc(collection(db, "users", currentUser.uid, "vehicles"), {
+    ...cleanVehicle,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  return ref.id;
+}
+
 function slugify(value) {
   return String(value || "")
     .toLowerCase()
@@ -475,13 +601,27 @@ function priceRangeForPart(partName) {
 
 function createSearchResults(search, pageNumber = 1, limit = 10) {
   const vehicle = search.vehicle || {};
+  const country = normaliseCountryCode(search.country || vehicle.country || detectSearchCountry()) || "GB";
   const partName = search.selectedPart?.name || vehicle.wantedItem || search.partNumber || "car part";
   const vehicleName = [vehicle.year, vehicle.make, vehicle.model, vehicle.variant].filter(Boolean).join(" ");
   const queryTitle = [vehicleName, partName].filter(Boolean).join(" ");
   const seed = Math.abs(hashString(`${search.rawQuery}-${partName}-${vehicleName}`));
   const [minPrice, maxPrice] = priceRangeForPart(partName);
   const conditions = ["Used", "Used", "Used", "Refurbished", "Used", "New", "Scrap/breaker part", "Used", "Refurbished", "Used", "Used", "Refurbished"];
-  const locations = ["Manchester", "Birmingham", "Leeds", "Bristol", "Glasgow", "London", "Cardiff", "Nottingham", "Liverpool", "Sheffield", "Newcastle", "Coventry"];
+  const demoLocations = {
+    GB: ["Manchester", "Birmingham", "Leeds", "Bristol", "Glasgow", "London", "Cardiff", "Nottingham", "Liverpool", "Sheffield", "Newcastle", "Coventry"],
+    US: ["New York, NY", "Los Angeles, CA", "Chicago, IL", "Houston, TX", "Atlanta, GA", "Phoenix, AZ"],
+    IE: ["Dublin", "Cork", "Galway", "Limerick", "Waterford"],
+    CA: ["Toronto, ON", "Vancouver, BC", "Montreal, QC", "Calgary, AB", "Ottawa, ON"],
+    AU: ["Sydney", "Melbourne", "Brisbane", "Perth", "Adelaide"],
+    DE: ["Berlin", "Munich", "Hamburg", "Cologne", "Frankfurt"],
+    FR: ["Paris", "Lyon", "Marseille", "Lille", "Toulouse"],
+    ES: ["Madrid", "Barcelona", "Valencia", "Seville", "Bilbao"],
+    IT: ["Milan", "Rome", "Turin", "Naples", "Bologna"],
+    NL: ["Amsterdam", "Rotterdam", "Utrecht", "Eindhoven", "The Hague"],
+    BE: ["Brussels", "Antwerp", "Ghent", "Bruges", "Leuven"],
+  };
+  const locations = demoLocations[country] || demoLocations.GB;
   const confidence = ["High match", "High match", "Possible match", "Possible match", "Check carefully", "Possible match", "High match", "Possible match", "Check carefully", "Possible match"];
   const platformSequence = Array.from({ length: 28 }, (_, index) => {
     const base = ["ebay", "breakerlink", "parts-gateway", "1st-choice-spares", "local-scrap-yard", "independent-breaker-yard", "ebay", "parts-gateway", "breakerlink", "ebay"];
@@ -525,10 +665,11 @@ function createSearchResults(search, pageNumber = 1, limit = 10) {
       listingUrl,
       originalDomain: platform.websiteUrl ? new URL(platform.websiteUrl).hostname.replace(/^www\./, "") : "local seller",
       condition: conditions[index % conditions.length],
-      location: locations[(seed + index) % locations.length],
+      location: `${locations[(seed + index) % locations.length]}, ${countryLabel(country)}`,
       delivery: index % 4 !== 0,
       deliveryOption: index % 4 !== 0 ? "Delivery available" : "Collection only",
       confidenceLabel: confidence[index % confidence.length],
+      country: countryLabel(country),
     };
   });
 }
@@ -588,11 +729,19 @@ function hideSearchOverlay() {
 }
 
 async function runSearch(search) {
-  if (!requireAuth({ type: "runSearch", search }, location.pathname)) return;
+  const country = normaliseCountryCode(search.country || search.vehicle?.country || detectSearchCountry()) || "GB";
+  const searchWithCountry = {
+    ...search,
+    country,
+    countryName: countryLabel(country),
+    vehicle: search.vehicle ? { ...search.vehicle, country } : search.vehicle,
+  };
+  localStorage.setItem("parthunt-search-country", country);
+  if (!requireAuth({ type: "runSearch", search: searchWithCountry }, location.pathname)) return;
   showSearchOverlay();
   try {
-    const response = await searchPartsApi({ ...search, page: 1, limit: 30 });
-    const payload = { id: `srch_${Date.now()}`, ...search, results: response.allResults || response.results || [], totalResults: response.totalResults, provider: response.provider || "demo" };
+    const response = await searchPartsApi({ ...searchWithCountry, page: 1, limit: 30 });
+    const payload = { id: `srch_${Date.now()}`, ...searchWithCountry, country: response.country || country, countryName: response.countryName || countryLabel(country), results: response.allResults || response.results || [], totalResults: response.totalResults, provider: response.provider || "demo" };
     sessionStorage.setItem("parthunt-current-search", JSON.stringify(payload));
     location.href = "/search/results/demo-search/";
   } catch (error) {
@@ -873,6 +1022,26 @@ function initVehicleDropdowns() {
 function initVehicleSearch() {
   initVehicleDropdowns();
   $("#lookupRegistrationButton")?.addEventListener("click", lookupRegistration);
+  $("#saveVehicleButton")?.addEventListener("click", async () => {
+    const status = $("#saveVehicleStatus");
+    const vehicle = vehicleRecordFromSearchForm();
+    if (!vehicle.make || !vehicle.model || !vehicle.year) {
+      status && (status.textContent = "Choose make, model, and year before saving this vehicle.");
+      return;
+    }
+    if (!requireAuth({ type: "saveVehicle", vehicle }, location.pathname)) return;
+    const button = $("#saveVehicleButton");
+    button.disabled = true;
+    status && (status.textContent = "Saving vehicle...");
+    try {
+      await saveUserVehicle(vehicle);
+      status && (status.textContent = "Vehicle saved to My Vehicles.");
+    } catch (error) {
+      status && (status.textContent = error.message || "Could not save this vehicle.");
+    } finally {
+      button.disabled = false;
+    }
+  });
   $("#vehicleSearchForm")?.addEventListener("submit", (event) => {
     event.preventDefault();
     const vehicle = enrichVehicleForSearch({
@@ -1124,7 +1293,7 @@ function initResults() {
     search.results = createSearchResults(search);
     sessionStorage.setItem("parthunt-current-search", JSON.stringify(search));
   }
-  $("#resultsTitle") && ($("#resultsTitle").textContent = `Results for: ${search.rawQuery}`);
+  $("#resultsTitle") && ($("#resultsTitle").textContent = `Results for: ${search.rawQuery}${search.country || search.countryName ? ` · ${search.countryName || countryLabel(search.country)}` : ""}`);
   const grid = $("#resultsGrid");
   if (!grid) return;
   let currentPage = Number(new URLSearchParams(location.search).get("page")) || 1;
@@ -1231,6 +1400,8 @@ function initResults() {
         searchType: search.searchType,
         rawQuery: search.rawQuery,
         generatedSearchTerms: search.generatedSearchTerms || [search.rawQuery],
+        country: search.country || "",
+        countryName: search.countryName || "",
         vehicle: search.vehicle || null,
         selectedPart: search.selectedPart || null,
         partNumber: search.partNumber || null,
@@ -1345,6 +1516,8 @@ function historyPayload(item = {}) {
     searchType: item.searchType || "vehicle_part",
     rawQuery: item.rawQuery || partSummary(item),
     generatedSearchTerms: item.generatedSearchTerms || [item.rawQuery].filter(Boolean),
+    country: item.country || item.vehicle?.country || detectSearchCountry(),
+    countryName: item.countryName || countryLabel(item.country || item.vehicle?.country || detectSearchCountry()),
     vehicle: item.vehicle || null,
     selectedPart: item.selectedPart || null,
     partNumber: item.partNumber || null,
@@ -1489,8 +1662,114 @@ function initReviewPage() {
   syncSelectedPlatform();
 }
 
+function vehicleCardTitle(vehicle = {}) {
+  return vehicle.displayName || [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(" ") || "Saved vehicle";
+}
+
+function vehicleSearchPayload(vehicle = {}, wantedItem = "") {
+  const searchVehicle = {
+    ...normaliseVehicleRecord(vehicle),
+    wantedItem: String(wantedItem || "").trim(),
+  };
+  const generatedSearchTerms = buildVehiclePartSearchTerms(searchVehicle);
+  const rawQuery = generatedSearchTerms[0] || [searchVehicle.year, searchVehicle.make, searchVehicle.model, searchVehicle.wantedItem].filter(Boolean).join(" ");
+  return {
+    searchType: "vehicle_part",
+    vehicle: searchVehicle,
+    selectedPart: {
+      id: searchVehicle.wantedItem.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "searched-part",
+      name: searchVehicle.wantedItem,
+      category: "Saved vehicle search",
+      alternativeNames: [],
+    },
+    rawQuery,
+    generatedSearchTerms,
+    country: searchVehicle.country || detectSearchCountry(),
+    countryName: countryLabel(searchVehicle.country || detectSearchCountry()),
+  };
+}
+
+function fillMyVehicleCountrySelect() {
+  const select = $("#myVehicleCountry");
+  if (!select) return;
+  select.innerHTML = countryOptions();
+}
+
+async function renderMyVehicles(vehicles = []) {
+  const grid = $("#myVehiclesGrid");
+  if (!grid) return;
+  grid.innerHTML = vehicles.length ? vehicles.map((vehicle) => `
+    <article class="my-vehicle-card">
+      <div class="my-vehicle-card-header">
+        <div>
+          <p class="eyebrow">${escapeHtml(vehicle.countryName || countryLabel(vehicle.country))}</p>
+          <h3>${escapeHtml(vehicleCardTitle(vehicle))}</h3>
+          <p class="muted">${escapeHtml([vehicle.variant, vehicle.fuelType, vehicle.engineSize, vehicle.colour].filter(Boolean).join(" · ") || "Ready for part searches")}</p>
+        </div>
+        <span class="vehicle-chip">${escapeHtml(vehicle.registrationNumber || vehicle.country || "Vehicle")}</span>
+      </div>
+      <label>
+        <span>Part to search for this vehicle</span>
+        <input data-vehicle-part="${vehicle.id}" placeholder="Front bumper, alternator, headlight..." />
+      </label>
+      <div class="my-vehicle-actions">
+        <button class="button button-primary" type="button" data-search-vehicle="${vehicle.id}">Search Part</button>
+        <button class="button button-ghost" type="button" data-delete-vehicle="${vehicle.id}">Delete</button>
+      </div>
+    </article>
+  `).join("") : `<div class="empty-state">No saved vehicles yet. Add one above, or save a vehicle from the vehicle search page.</div>`;
+
+  grid.querySelectorAll("[data-search-vehicle]").forEach((button) => button.addEventListener("click", () => {
+    const vehicle = vehicles.find((item) => item.id === button.dataset.searchVehicle);
+    const wantedItem = grid.querySelector(`[data-vehicle-part="${button.dataset.searchVehicle}"]`)?.value.trim();
+    if (!wantedItem) {
+      grid.querySelector(`[data-vehicle-part="${button.dataset.searchVehicle}"]`)?.focus();
+      return;
+    }
+    runSearch(vehicleSearchPayload(vehicle, wantedItem));
+  }));
+  grid.querySelectorAll("[data-delete-vehicle]").forEach((button) => button.addEventListener("click", async () => {
+    button.disabled = true;
+    await deleteDoc(doc(db, "users", currentUser.uid, "vehicles", button.dataset.deleteVehicle));
+    const nextVehicles = vehicles.filter((vehicle) => vehicle.id !== button.dataset.deleteVehicle);
+    renderMyVehicles(nextVehicles);
+  }));
+}
+
+function initMyVehiclesPage() {
+  fillMyVehicleCountrySelect();
+  $("#myVehicleForm")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const status = $("#myVehicleStatus");
+    const button = event.submitter || $("#myVehicleForm button[type='submit']");
+    button.disabled = true;
+    status && (status.textContent = "Saving vehicle...");
+    try {
+      const vehicle = {
+        displayName: $("#myVehicleName").value.trim(),
+        make: $("#myVehicleMake").value.trim(),
+        model: $("#myVehicleModel").value.trim(),
+        year: $("#myVehicleYear").value.trim(),
+        variant: $("#myVehicleVariant").value.trim(),
+        fuelType: $("#myVehicleFuel").value.trim(),
+        engineSize: $("#myVehicleEngine").value.trim(),
+        country: $("#myVehicleCountry").value,
+      };
+      await saveUserVehicle(vehicle);
+      $("#myVehicleForm").reset();
+      fillMyVehicleCountrySelect();
+      status && (status.textContent = "Vehicle saved. You can search from its card below.");
+      renderMyVehicles(await loadUserVehicles());
+    } catch (error) {
+      status && (status.textContent = error.message || "Could not save this vehicle.");
+    } finally {
+      button.disabled = false;
+    }
+  });
+}
+
 async function initProtectedPages() {
-  if (!["dashboard", "history", "saved-parts", "settings", "review-new"].includes(page)) return;
+  if (!["dashboard", "my-vehicles", "history", "saved-parts", "settings", "review-new"].includes(page)) return;
   if (!currentUser) {
     $(".protected-content") && ($(".protected-content").innerHTML = `<div class="empty-state">Sign in to access this page. <a class="button button-primary" href="/sign-in/">Sign In</a></div>`);
     return;
@@ -1498,7 +1777,16 @@ async function initProtectedPages() {
   if (page === "dashboard") {
     const history = await loadCollection("searchHistory", "searchedAt").catch(() => []);
     const saved = await loadCollection("savedParts", "savedAt").catch(() => []);
-    $("#dashboardContent").innerHTML = `<div class="dashboard-stats"><article><strong>${history.length}</strong><span>Searches</span></article><article><strong>${saved.length}</strong><span>Saved parts</span></article><article><strong>${history.filter((item) => item.purchaseStatus === "bought").length}</strong><span>Bought items</span></article><article><strong>3</strong><span>Review reminders</span></article></div>`;
+    const vehicles = await loadUserVehicles().catch(() => []);
+    $("#dashboardContent").innerHTML = `<div class="dashboard-stats"><article><strong>${history.length}</strong><span>Searches</span></article><article><strong>${vehicles.length}/5</strong><span>My vehicles</span></article><article><strong>${saved.length}</strong><span>Saved parts</span></article><article><strong>${history.filter((item) => item.purchaseStatus === "bought").length}</strong><span>Bought items</span></article></div>
+      <div class="page-card-grid two">
+        <a class="page-card" href="/my-vehicles/"><p class="eyebrow">Saved garage</p><h3>Search from My Vehicles</h3><p class="muted">Keep up to 5 cars and run part searches straight from each vehicle card.</p></a>
+        <a class="page-card" href="/search/vehicle/"><p class="eyebrow">Vehicle lookup</p><h3>Add another vehicle</h3><p class="muted">Use registration lookup or manual details, then save the vehicle to your account.</p></a>
+      </div>`;
+  }
+  if (page === "my-vehicles") {
+    initMyVehiclesPage();
+    renderMyVehicles(await loadUserVehicles().catch(() => []));
   }
   if (page === "history") {
     const history = await loadCollection("searchHistory", "searchedAt").catch(() => []);
@@ -1598,11 +1886,22 @@ onAuthStateChanged(auth, async (user) => {
     sessionStorage.removeItem("parthunt-pending-action");
     if (pending?.type === "openListing") window.open(pending.url, "_blank", "noopener,noreferrer");
     if (pending?.type === "runSearch") runSearch(pending.search);
+    if (pending?.type === "saveVehicle") {
+      try {
+        await saveUserVehicle(pending.vehicle);
+        location.href = "/my-vehicles/";
+      } catch (error) {
+        console.warn("Pending vehicle could not be saved.", error);
+      }
+      return;
+    }
     if (pending?.type === "saveSearch") {
       const savedId = await saveSearch({
         searchType: pending.search.searchType,
         rawQuery: pending.search.rawQuery,
         generatedSearchTerms: pending.search.generatedSearchTerms || [pending.search.rawQuery],
+        country: pending.search.country || "",
+        countryName: pending.search.countryName || "",
         vehicle: pending.search.vehicle || null,
         selectedPart: pending.search.selectedPart || null,
         partNumber: pending.search.partNumber || null,

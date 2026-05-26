@@ -11,9 +11,11 @@ PartHunt is a Firebase-backed web app for finding used, scrap, recycled, and rep
 - Email/password sign-up, sign-in, and password reset with Firebase Authentication.
 - Firestore saved parts and saved search metadata under `users/{uid}`.
 - Firestore search history, purchase tracking, and verified platform reviews.
+- Firestore My Vehicles garage for up to five saved vehicles per user.
 - Firebase Storage photo uploads under `users/{uid}/part-photos`.
 - Search by part number.
 - Search by vehicle details.
+- Country-aware live search using the visitor/search country for marketplace and web-search region settings.
 - UK registration lookup flow using DVLA Vehicle Enquiry Service through a backend proxy.
 - Interactive clickable car part selector.
 - Mock search results structured for a future search API.

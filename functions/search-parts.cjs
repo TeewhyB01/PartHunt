@@ -33,8 +33,52 @@ const platformLookup = [
   },
 ];
 
+const countryConfigs = {
+  GB: { code: "GB", name: "United Kingdom", ebayMarketplaceId: "EBAY_GB", ebayCountry: "GB", ebayDomain: "ebay.co.uk", googleDomain: "google.co.uk", gl: "uk", location: "United Kingdom" },
+  US: { code: "US", name: "United States", ebayMarketplaceId: "EBAY_US", ebayCountry: "US", ebayDomain: "ebay.com", googleDomain: "google.com", gl: "us", location: "United States" },
+  IE: { code: "IE", name: "Ireland", ebayMarketplaceId: "EBAY_IE", ebayCountry: "IE", ebayDomain: "ebay.ie", googleDomain: "google.ie", gl: "ie", location: "Ireland" },
+  CA: { code: "CA", name: "Canada", ebayMarketplaceId: "EBAY_CA", ebayCountry: "CA", ebayDomain: "ebay.ca", googleDomain: "google.ca", gl: "ca", location: "Canada" },
+  AU: { code: "AU", name: "Australia", ebayMarketplaceId: "EBAY_AU", ebayCountry: "AU", ebayDomain: "ebay.com.au", googleDomain: "google.com.au", gl: "au", location: "Australia" },
+  DE: { code: "DE", name: "Germany", ebayMarketplaceId: "EBAY_DE", ebayCountry: "DE", ebayDomain: "ebay.de", googleDomain: "google.de", gl: "de", location: "Germany" },
+  FR: { code: "FR", name: "France", ebayMarketplaceId: "EBAY_FR", ebayCountry: "FR", ebayDomain: "ebay.fr", googleDomain: "google.fr", gl: "fr", location: "France" },
+  ES: { code: "ES", name: "Spain", ebayMarketplaceId: "EBAY_ES", ebayCountry: "ES", ebayDomain: "ebay.es", googleDomain: "google.es", gl: "es", location: "Spain" },
+  IT: { code: "IT", name: "Italy", ebayMarketplaceId: "EBAY_IT", ebayCountry: "IT", ebayDomain: "ebay.it", googleDomain: "google.it", gl: "it", location: "Italy" },
+  NL: { code: "NL", name: "Netherlands", ebayMarketplaceId: "EBAY_NL", ebayCountry: "NL", ebayDomain: "ebay.nl", googleDomain: "google.nl", gl: "nl", location: "Netherlands" },
+  BE: { code: "BE", name: "Belgium", ebayMarketplaceId: "EBAY_BE", ebayCountry: "BE", ebayDomain: "ebay.be", googleDomain: "google.be", gl: "be", location: "Belgium" },
+};
+
+const countryAliases = {
+  uk: "GB",
+  gb: "GB",
+  "great britain": "GB",
+  "united kingdom": "GB",
+  england: "GB",
+  scotland: "GB",
+  wales: "GB",
+  "northern ireland": "GB",
+  us: "US",
+  usa: "US",
+  "united states": "US",
+  "united states of america": "US",
+  ireland: "IE",
+  germany: "DE",
+  france: "FR",
+  spain: "ES",
+  italy: "IT",
+  canada: "CA",
+  australia: "AU",
+  netherlands: "NL",
+  belgium: "BE",
+};
+
 function cleanText(value = "") {
   return String(value).replace(/\s+/g, " ").trim();
+}
+
+function resolveSearchCountry(input = {}) {
+  const raw = cleanText(input.country || input.userCountry || input.vehicle?.country || "");
+  const code = countryConfigs[raw.toUpperCase()] ? raw.toUpperCase() : countryAliases[raw.toLowerCase()];
+  return countryConfigs[code] || countryConfigs.GB;
 }
 
 function slugify(value = "") {
@@ -170,13 +214,19 @@ function normalizeEbayImage(url = "") {
   return String(url || "").replace(/s-l\d+\.jpg/i, "s-l500.jpg");
 }
 
-function mapEbayResult(item = {}, input = {}, index = 0) {
+function mapEbayResult(item = {}, input = {}, index = 0, country = countryConfigs.GB) {
   const title = cleanText(item.title || "eBay vehicle part listing");
   const locationParts = [item.itemLocation?.city, item.itemLocation?.postalCode, item.itemLocation?.country].map(cleanText).filter(Boolean);
   const shippingOption = Array.isArray(item.shippingOptions) ? item.shippingOptions[0] : null;
   const shippingCost = shippingOption?.shippingCost ? formatMoney(shippingOption.shippingCost) : "";
   const deliveryOption = shippingOption?.shippingCostType === "FIXED" && shippingCost ? `Delivery ${shippingCost}` : "Check delivery";
   const itemWebUrl = item.itemWebUrl || "";
+  let originalDomain = country.ebayDomain;
+  try {
+    if (itemWebUrl) originalDomain = new URL(itemWebUrl).hostname.replace(/^www\./, "");
+  } catch {
+    originalDomain = country.ebayDomain;
+  }
   return {
     id: `ebay-${item.itemId || index + 1}`,
     title,
@@ -189,13 +239,14 @@ function mapEbayResult(item = {}, input = {}, index = 0) {
     platformLogoUrl: "/assets/platforms/ebay.svg",
     platformCategory: "Online marketplace",
     listingUrl: itemWebUrl,
-    originalDomain: "ebay.co.uk",
+    originalDomain,
     condition: cleanText(item.condition || "Check listing"),
     location: locationParts.join(", ") || "Check listing",
     delivery: Boolean(shippingOption),
     deliveryOption,
     confidenceLabel: confidenceLabel({ title, snippet: item.shortDescription || "" }, input),
     seller: item.seller?.username || "",
+    country: country.name,
   };
 }
 
@@ -257,6 +308,7 @@ async function searchPartsWithEbay(input = {}, clientId = "", clientSecret = "")
   }
 
   const token = await getEbayApplicationToken(clientId, clientSecret);
+  const country = resolveSearchCountry(input);
   const offset = (page - 1) * limit;
   const params = new URLSearchParams({
     q: query,
@@ -266,8 +318,8 @@ async function searchPartsWithEbay(input = {}, clientId = "", clientSecret = "")
   const response = await fetch(`https://api.ebay.com/buy/browse/v1/item_summary/search?${params.toString()}`, {
     headers: {
       Authorization: `Bearer ${token}`,
-      "X-EBAY-C-MARKETPLACE-ID": "EBAY_GB",
-      "X-EBAY-C-ENDUSERCTX": "contextualLocation=country=GB",
+      "X-EBAY-C-MARKETPLACE-ID": country.ebayMarketplaceId,
+      "X-EBAY-C-ENDUSERCTX": `contextualLocation=country=${country.ebayCountry}`,
     },
   });
   const body = await response.json().catch(() => ({}));
@@ -279,7 +331,7 @@ async function searchPartsWithEbay(input = {}, clientId = "", clientSecret = "")
   }
 
   const items = Array.isArray(body.itemSummaries) ? body.itemSummaries : [];
-  const mapped = items.map((item, index) => mapEbayResult(item, input, offset + index));
+  const mapped = items.map((item, index) => mapEbayResult(item, input, offset + index, country));
   const totalResults = Math.min(Number(body.total) || mapped.length, 10000);
   return {
     results: mapped,
@@ -290,6 +342,8 @@ async function searchPartsWithEbay(input = {}, clientId = "", clientSecret = "")
     hasNextPage: offset + limit < totalResults,
     query,
     provider: "ebay",
+    country: country.code,
+    countryName: country.name,
   };
 }
 
@@ -386,12 +440,14 @@ async function searchPartsWithSerpApi(input = {}, apiKey = "") {
     throw error;
   }
 
+  const country = resolveSearchCountry(input);
   const requestedResults = Math.min(30, Math.max(limit, page * limit));
   const baseParams = {
     q: query,
-    google_domain: "google.co.uk",
-    gl: "uk",
+    google_domain: country.googleDomain,
+    gl: country.gl,
     hl: "en",
+    location: country.location,
     api_key: apiKey,
   };
   const params = new URLSearchParams({
@@ -438,6 +494,8 @@ async function searchPartsWithSerpApi(input = {}, apiKey = "") {
     allResults: mapped,
     query,
     provider: "serpapi",
+    country: country.code,
+    countryName: country.name,
   };
 }
 
@@ -488,6 +546,7 @@ function rankAndMixResults(results = [], input = {}) {
 async function searchPartsLive(input = {}, config = {}) {
   const page = Math.max(1, Number(input.page) || 1);
   const limit = Math.max(1, Math.min(30, Number(input.limit) || 10));
+  const country = resolveSearchCountry(input);
   const errors = [];
   const searches = [];
 
@@ -530,11 +589,14 @@ async function searchPartsLive(input = {}, config = {}) {
     query: settled[0].query || buildSearchQuery(input),
     provider: settled.map((result) => result.provider).join("+"),
     providerWarnings: errors,
+    country: country.code,
+    countryName: country.name,
   };
 }
 
 module.exports = {
   buildSearchQuery,
+  resolveSearchCountry,
   searchPartsLive,
   searchPartsWithEbay,
   searchPartsWithSerpApi,

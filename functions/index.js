@@ -7,6 +7,15 @@ const serpApiKey = defineSecret("SERPAPI_KEY");
 const ebayClientId = defineSecret("EBAY_CLIENT_ID");
 const ebayClientSecret = defineSecret("EBAY_CLIENT_SECRET");
 
+function firstHeader(headers = {}, names = []) {
+  for (const name of names) {
+    const value = headers[name] || headers[name.toLowerCase()];
+    if (Array.isArray(value) && value[0]) return value[0];
+    if (value) return value;
+  }
+  return "";
+}
+
 function normaliseRegistration(value) {
   return String(value || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
@@ -68,7 +77,9 @@ exports.searchParts = onRequest({ secrets: [serpApiKey, ebayClientId, ebayClient
   }
 
   try {
-    const result = await searchPartsLive(request.body || {}, {
+    const body = request.body || {};
+    const country = body.country || body.vehicle?.country || firstHeader(request.headers, ["x-vercel-ip-country", "cf-ipcountry", "x-country-code"]);
+    const result = await searchPartsLive({ ...body, country }, {
       serpApiKey: serpApiKey.value(),
       ebayClientId: ebayClientId.value(),
       ebayClientSecret: ebayClientSecret.value(),
