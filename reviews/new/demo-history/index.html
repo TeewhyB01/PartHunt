@@ -5,12 +5,13 @@
     <div id="siteNav"></div>
     <main class="section protected-content">
       <div class="section-heading"><p class="eyebrow">Review purchase</p><h1>Tell others where you bought the part.</h1></div>
+      <div id="reviewContext" class="review-context"></div>
       <form id="reviewForm" class="form-panel form-grid compact">
-        <label><span>Did you buy the item?</span><select><option>Yes</option><option>No</option></select></label>
-        <label><span>Platform bought from</span><input id="platformName" value="eBay" /></label>
-        <label><span>Listing URL</span><input type="url" placeholder="https://www.ebay.co.uk/itm/123456789" /></label>
-        <label><span>Price paid</span><input type="number" placeholder="86" /></label>
-        <label><span>Item condition</span><select><option>Used</option><option>New</option><option>Refurbished</option><option>Scrap</option></select></label>
+        <label><span>Did you buy the item?</span><select id="boughtItem"><option value="yes">Yes</option><option value="no">No</option></select></label>
+        <label><span>Platform bought from</span><select id="platformName"></select></label>
+        <label><span>Listing URL</span><input id="reviewListingUrl" type="url" placeholder="https://www.ebay.co.uk/itm/123456789" /></label>
+        <label><span>Price paid</span><input id="reviewPricePaid" type="number" placeholder="86" /></label>
+        <label><span>Item condition</span><select id="reviewItemCondition"><option>Used</option><option>New</option><option>Refurbished</option><option>Scrap</option><option>Unknown</option></select></label>
         <label><span>Item rating</span><select id="itemRating"><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option></select></label>
         <label><span>Delivery rating</span><select id="deliveryRating"><option value="">No delivery</option><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option></select></label>
         <label class="checkbox-row"><input id="wouldBuyAgain" type="checkbox" checked /><span>Would buy again</span></label>

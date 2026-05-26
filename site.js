@@ -295,6 +295,25 @@ function serialisableResults(results = []) {
   }));
 }
 
+function uniquePlatformsFromResults(results = []) {
+  const platforms = new Map();
+  results.forEach((result) => {
+    const name = result.platformName || result.source || "Listing";
+    const slug = result.platformId || slugify(name);
+    if (!platforms.has(slug)) {
+      platforms.set(slug, {
+        id: slug,
+        slug,
+        name,
+        category: result.platformCategory || "External listing",
+        logoUrl: result.platformLogoUrl || "",
+        listingUrl: result.listingUrl || "",
+      });
+    }
+  });
+  return Array.from(platforms.values());
+}
+
 function withoutUndefined(value) {
   if (Array.isArray(value)) return value.map(withoutUndefined);
   if (value && typeof value === "object") {
@@ -545,12 +564,42 @@ async function searchPartsApi(input = {}) {
   };
 }
 
+function showSearchOverlay(message = "Searching live part listings") {
+  let overlay = $("#searchLoadingOverlay");
+  if (!overlay) {
+    document.body.insertAdjacentHTML("beforeend", `<section id="searchLoadingOverlay" class="search-loading-overlay hidden" role="status" aria-live="polite"></section>`);
+    overlay = $("#searchLoadingOverlay");
+  }
+  overlay.innerHTML = `
+    <div class="search-loading-card">
+      <div class="search-orbit" aria-hidden="true"><span></span><span></span></div>
+      <p class="eyebrow">PartHunt AI</p>
+      <h2>${escapeHtml(message)}</h2>
+      <p>Checking eBay, specialist platforms, breakers, and wider web results.</p>
+    </div>
+  `;
+  overlay.classList.remove("hidden");
+  document.body.classList.add("modal-open");
+}
+
+function hideSearchOverlay() {
+  $("#searchLoadingOverlay")?.classList.add("hidden");
+  document.body.classList.remove("modal-open");
+}
+
 async function runSearch(search) {
   if (!requireAuth({ type: "runSearch", search }, location.pathname)) return;
-  const response = await searchPartsApi({ ...search, page: 1, limit: 30 });
-  const payload = { id: `srch_${Date.now()}`, ...search, results: response.allResults || response.results || [], totalResults: response.totalResults, provider: response.provider || "demo" };
-  sessionStorage.setItem("parthunt-current-search", JSON.stringify(payload));
-  location.href = "/search/results/demo-search/";
+  showSearchOverlay();
+  try {
+    const response = await searchPartsApi({ ...search, page: 1, limit: 30 });
+    const payload = { id: `srch_${Date.now()}`, ...search, results: response.allResults || response.results || [], totalResults: response.totalResults, provider: response.provider || "demo" };
+    sessionStorage.setItem("parthunt-current-search", JSON.stringify(payload));
+    location.href = "/search/results/demo-search/";
+  } catch (error) {
+    console.error(error);
+    hideSearchOverlay();
+    alert(error.message || "Search failed. Please try again.");
+  }
 }
 
 function initAuthPages() {
@@ -1084,21 +1133,76 @@ function initResults() {
   renderCompareTray(search);
 }
 
-function initPlatformProfile() {
+function reviewStats(reviews = [], seedPlatform = {}) {
+  if (!reviews.length) {
+    return {
+      averageRating: 0,
+      averageItemRating: 0,
+      averageDeliveryRating: 0,
+      wouldBuyAgainPercentage: 0,
+      topPartCategories: seedPlatform.topPartCategories || [],
+      breakdown: [0, 0, 0, 0, 0],
+    };
+  }
+  const average = (values) => values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
+  const ratings = reviews.map((review) => Number(review.overallRating || review.itemRating || 0)).filter(Boolean);
+  const itemRatings = reviews.map((review) => Number(review.itemRating || 0)).filter(Boolean);
+  const deliveryRatings = reviews.map((review) => Number(review.deliveryRating || 0)).filter(Boolean);
+  const buyAgainCount = reviews.filter((review) => review.wouldBuyAgain).length;
+  const partCounts = reviews.reduce((counts, review) => {
+    const part = review.partName || "Car parts";
+    counts[part] = (counts[part] || 0) + 1;
+    return counts;
+  }, {});
+  const breakdown = [5, 4, 3, 2, 1].map((rating) => {
+    const count = ratings.filter((value) => Math.round(value) === rating).length;
+    return Math.round((count / reviews.length) * 100);
+  });
+  return {
+    averageRating: average(ratings),
+    averageItemRating: average(itemRatings),
+    averageDeliveryRating: average(deliveryRatings),
+    wouldBuyAgainPercentage: Math.round((buyAgainCount / reviews.length) * 100),
+    topPartCategories: Object.entries(partCounts).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([name]) => name),
+    breakdown,
+  };
+}
+
+async function loadPlatformReviews(slug, platformName) {
+  const snapshot = await getDocs(query(collection(db, "platformReviews"), orderBy("createdAt", "desc")));
+  return snapshot.docs
+    .map((item) => ({ id: item.id, ...item.data() }))
+    .filter((review) => {
+      const reviewSlug = review.platformSlug || slugify(review.platformName || "");
+      return reviewSlug === slug || (platformName && (review.platformName || "").toLowerCase() === platformName.toLowerCase());
+    });
+}
+
+async function initPlatformProfile() {
   const slug = location.pathname.split("/").filter(Boolean).pop();
   const platform = demoPlatforms.find((item) => item.slug === slug) || demoPlatforms[0];
   const target = $("#platformProfileContent");
   if (!target) return;
+  target.innerHTML = `<div class="empty-state">Loading platform reviews...</div>`;
+  let reviews = [];
+  try {
+    reviews = await loadPlatformReviews(slug, platform.name);
+  } catch (error) {
+    console.error(error);
+  }
+  const stats = reviewStats(reviews, platform);
+  const reviewCount = reviews.length;
+  const commonParts = stats.topPartCategories.length ? stats.topPartCategories.join(", ") : "Reviews will reveal this once users start buying.";
   target.innerHTML = `<article class="platform-profile-card">
     <div class="platform-profile-cover">${platform.coverImageUrl ? `<img src="${platform.coverImageUrl}" alt="" />` : `<div>${platformLogo(platform)}<span>${platform.category}</span></div>`}</div>
-    <div class="platform-profile-header"><div>${platformLogo(platform)}<p class="eyebrow">Platform profile</p><h1>${platform.name}</h1><span class="category-badge">${categoryIcon(platform.categoryKey)}${platform.category}</span></div><div>${starRating(platform.averageRating)}<strong>${platform.reviewCount} reviews</strong><p class="muted">${platform.successfulPurchaseCount} successful purchases</p></div></div>
-    <div class="result-meta"><span class="tag">Item ${platform.averageItemRating}/5</span><span class="tag">Delivery ${platform.averageDeliveryRating}/5</span><span class="tag">${platform.wouldBuyAgainPercentage}% would buy again</span></div>
-    <p>${platform.summary}</p><p class="muted">Common parts: ${platform.topPartCategories.join(", ")}</p>
+    <div class="platform-profile-header"><div>${platformLogo(platform)}<p class="eyebrow">Platform profile</p><h1>${escapeHtml(platform.name)}</h1><span class="category-badge">${categoryIcon(platform.categoryKey)}${escapeHtml(platform.category)}</span></div><div>${reviewCount ? starRating(stats.averageRating) : "<p class='muted'>Ratings will appear once users start reviewing this platform.</p>"}<strong>${reviewCount} user reviews</strong><p class="muted">${reviewCount} successful purchases recorded</p></div></div>
+    <div class="result-meta"><span class="tag">Item ${stats.averageItemRating ? stats.averageItemRating.toFixed(1) : "0.0"}/5</span><span class="tag">Delivery ${stats.averageDeliveryRating ? stats.averageDeliveryRating.toFixed(1) : "0.0"}/5</span><span class="tag">${stats.wouldBuyAgainPercentage}% would buy again</span></div>
+    <p>${escapeHtml(reviewCount ? "This trust profile is calculated from PartHunt user reviews connected to saved search history." : platform.summary)}</p><p class="muted">Common parts: ${escapeHtml(commonParts)}</p>
     ${platform.websiteUrl ? `<a class="button button-primary" href="${platform.websiteUrl}" target="_blank" rel="noopener noreferrer">Visit platform website</a>` : ""}
     <h3>Rating breakdown</h3>
-    ${[5,4,3,2,1].map((rating, index) => `<div class="breakdown-row"><span>${rating} stars</span><div class="breakdown-bar"><span style="width:${[52,31,10,5,2][index]}%"></span></div><span>${[52,31,10,5,2][index]}%</span></div>`).join("")}
+    ${[5,4,3,2,1].map((rating, index) => `<div class="breakdown-row"><span>${rating} stars</span><div class="breakdown-bar"><span style="width:${stats.breakdown[index]}%"></span></div><span>${stats.breakdown[index]}%</span></div>`).join("")}
     <h3>User reviews</h3>
-    ${platform.reviewCount ? `<div class="review-list"><article class="review-card">${starRating(platform.averageRating, false)}<strong>Demo feedback</strong><p>${platform.summary}</p><p class="muted">Seed/demo data</p></article></div>` : `<div class="empty-state">No user reviews yet. Ratings will appear once users start reviewing this platform.</div>`}
+    ${reviews.length ? `<div class="review-list">${reviews.map((review) => `<article class="review-card">${starRating(review.overallRating || review.itemRating, false)}<strong>${escapeHtml(review.partName || "Car part purchase")}</strong><p>${escapeHtml(review.reviewText || "No written review added.")}</p><p class="muted">${escapeHtml(vehicleSummary({ year: review.vehicleYear, make: review.vehicleMake, model: review.vehicleModel }))} · ${escapeHtml(firestoreDate(review.createdAt))}</p></article>`).join("")}</div>` : `<div class="empty-state">No user reviews yet. Ratings will appear once users start reviewing this platform.</div>`}
   </article>`;
 }
 
@@ -1226,6 +1330,45 @@ function renderHistoryList(history = []) {
   }));
 }
 
+function reviewSearchContext() {
+  return JSON.parse(sessionStorage.getItem("parthunt-review-history") || "null")
+    || JSON.parse(sessionStorage.getItem("parthunt-current-search") || "null")
+    || null;
+}
+
+function initReviewPage() {
+  const reviewSearch = reviewSearchContext();
+  const platforms = uniquePlatformsFromResults(reviewSearch?.results || []);
+  const platformSelect = $("#platformName");
+  if (!platformSelect) return;
+  const fallbackPlatforms = platforms.length ? platforms : demoPlatforms.map((platform) => ({
+    id: platform.id,
+    slug: platform.slug,
+    name: platform.name,
+    category: platform.category,
+    logoUrl: platform.logoUrl,
+    listingUrl: platform.websiteUrl || "",
+  }));
+  platformSelect.innerHTML = fallbackPlatforms.map((platform) => `<option value="${escapeHtml(platform.name)}" data-platform-id="${escapeHtml(platform.id)}" data-platform-slug="${escapeHtml(platform.slug || platform.id)}" data-category="${escapeHtml(platform.category)}" data-listing-url="${escapeHtml(platform.listingUrl)}">${escapeHtml(platform.name)} · ${escapeHtml(platform.category)}</option>`).join("");
+  const context = $("#reviewContext");
+  if (context) {
+    context.innerHTML = reviewSearch ? `
+      <div class="review-context-card">
+        <p class="eyebrow">Review linked to saved search</p>
+        <h2>${escapeHtml(reviewSearch.rawQuery || partSummary(reviewSearch))}</h2>
+        <p class="muted">${escapeHtml(vehicleSummary(reviewSearch.vehicle || {}))}</p>
+      </div>
+    ` : `<div class="empty-state">No saved search context found. Choose from known platforms below.</div>`;
+  }
+  const syncSelectedPlatform = () => {
+    const option = platformSelect.selectedOptions[0];
+    if (!option) return;
+    $("#reviewListingUrl") && ($("#reviewListingUrl").value = option.dataset.listingUrl || "");
+  };
+  platformSelect.addEventListener("change", syncSelectedPlatform);
+  syncSelectedPlatform();
+}
+
 async function initProtectedPages() {
   if (!["dashboard", "history", "saved-parts", "settings", "review-new"].includes(page)) return;
   if (!currentUser) {
@@ -1256,12 +1399,41 @@ async function initProtectedPages() {
     $("#settingsUid").textContent = currentUser.uid;
   }
   if (page === "review-new") {
+    initReviewPage();
     $("#reviewForm").addEventListener("submit", async (event) => {
       event.preventDefault();
+      const option = $("#platformName").selectedOptions[0];
       const itemRating = Number($("#itemRating").value);
       const deliveryRating = $("#deliveryRating").value ? Number($("#deliveryRating").value) : null;
       const overallRating = deliveryRating ? (itemRating + deliveryRating) / 2 : itemRating;
-      await addDoc(collection(db, "users", currentUser.uid, "platformReviews"), { platformName: $("#platformName").value, itemRating, deliveryRating, overallRating, reviewText: $("#reviewText").value, wouldBuyAgain: $("#wouldBuyAgain").checked, createdAt: serverTimestamp() });
+      const reviewSearch = reviewSearchContext();
+      const review = withoutUndefined({
+        userId: currentUser.uid,
+        searchHistoryId: reviewSearch?.savedHistoryId || reviewSearch?.id || "",
+        platformId: option?.dataset.platformId || slugify($("#platformName").value),
+        platformSlug: option?.dataset.platformSlug || slugify($("#platformName").value),
+        platformName: $("#platformName").value,
+        platformCategory: option?.dataset.category || "",
+        partName: partSummary(reviewSearch || {}),
+        vehicleMake: reviewSearch?.vehicle?.make || "",
+        vehicleModel: reviewSearch?.vehicle?.model || "",
+        vehicleYear: reviewSearch?.vehicle?.year || "",
+        listingUrl: $("#reviewListingUrl").value.trim(),
+        pricePaid: $("#reviewPricePaid").value ? Number($("#reviewPricePaid").value) : null,
+        itemCondition: $("#reviewItemCondition").value,
+        boughtItem: $("#boughtItem").value === "yes",
+        itemRating,
+        deliveryRating,
+        overallRating,
+        reviewText: $("#reviewText").value,
+        wouldBuyAgain: $("#wouldBuyAgain").checked,
+      });
+      const reviewWithTimestamp = {
+        ...review,
+        createdAt: serverTimestamp(),
+      };
+      await setDoc(doc(db, "users", currentUser.uid, "platformReviews", review.searchHistoryId || `${review.platformSlug}-${Date.now()}`), reviewWithTimestamp);
+      await addDoc(collection(db, "platformReviews"), reviewWithTimestamp);
       location.href = "/history/";
     });
   }

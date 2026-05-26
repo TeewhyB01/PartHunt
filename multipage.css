@@ -778,6 +778,22 @@ body[data-page="search-results"] .page-hero.compact {
   background: rgba(18, 28, 46, 0.92);
 }
 
+[data-theme="dark"] .review-context-card,
+[data-theme="dark"] .search-loading-card {
+  background:
+    linear-gradient(180deg, rgba(16, 24, 39, 0.97), rgba(18, 28, 46, 0.94)),
+    #101827;
+}
+
+[data-theme="dark"] .review-context-card h2,
+[data-theme="dark"] .search-loading-card h2 {
+  color: #f9fafb;
+}
+
+[data-theme="dark"] .search-loading-overlay {
+  background: rgba(7, 11, 18, 0.62);
+}
+
 [data-theme="dark"] .result-card h3,
 [data-theme="dark"] .compare-card h3,
 [data-theme="dark"] .compare-card dd,
